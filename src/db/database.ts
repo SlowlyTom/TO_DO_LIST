@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie'
-import type { Project, Category, SubCategory, Task, TaskHistory } from '../types'
+import type { Project, Category, SubCategory, Task, TaskHistory, CategoryStatus } from '../types'
 
 export class PmcDatabase extends Dexie {
   projects!: Table<Project>
@@ -16,6 +16,28 @@ export class PmcDatabase extends Dexie {
       subCategories: '++id, categoryId, projectId, order, createdAt, updatedAt',
       tasks: '++id, subCategoryId, categoryId, projectId, status, priority, dueDate, createdAt, updatedAt',
       taskHistory: '++id, taskId, changedAt',
+    })
+    this.version(2).stores({
+      projects:      '++id, name, status, archivedAt, createdAt, updatedAt',
+      categories:    '++id, projectId, status, archivedAt, order, createdAt, updatedAt',
+      subCategories: '++id, categoryId, projectId, status, archivedAt, order, createdAt, updatedAt',
+      tasks:         '++id, subCategoryId, categoryId, projectId, status, priority, archivedAt, dueDate, createdAt, updatedAt',
+      taskHistory:   '++id, taskId, changedAt',
+    }).upgrade(async tx => {
+      await tx.table('projects').toCollection().modify((p: Project) => {
+        if (p.archivedAt === undefined) p.archivedAt = null
+      })
+      await tx.table('categories').toCollection().modify((c: Category) => {
+        if ((c as { status?: CategoryStatus }).status === undefined) c.status = 'ACTIVE'
+        if (c.archivedAt === undefined) c.archivedAt = null
+      })
+      await tx.table('subCategories').toCollection().modify((s: SubCategory) => {
+        if ((s as { status?: CategoryStatus }).status === undefined) s.status = 'ACTIVE'
+        if (s.archivedAt === undefined) s.archivedAt = null
+      })
+      await tx.table('tasks').toCollection().modify((t: Task) => {
+        if (t.archivedAt === undefined) t.archivedAt = null
+      })
     })
   }
 }
@@ -34,6 +56,7 @@ export async function seedDatabase() {
     description: '반도체 장비용 Modbus TCP 클라이언트 드라이버 라이브러리 개발',
     status: 'ACTIVE',
     color: '#3b82f6',
+    archivedAt: null,
     createdAt: now,
     updatedAt: now,
   })
@@ -41,6 +64,8 @@ export async function seedDatabase() {
   const cat1Id = await db.categories.add({
     projectId: projectId as number,
     name: '설계 및 아키텍처',
+    status: 'ACTIVE',
+    archivedAt: null,
     order: 0,
     createdAt: now,
     updatedAt: now,
@@ -49,6 +74,8 @@ export async function seedDatabase() {
   const cat2Id = await db.categories.add({
     projectId: projectId as number,
     name: '구현',
+    status: 'ACTIVE',
+    archivedAt: null,
     order: 1,
     createdAt: now,
     updatedAt: now,
@@ -58,6 +85,8 @@ export async function seedDatabase() {
     categoryId: cat1Id as number,
     projectId: projectId as number,
     name: '공개 API 설계',
+    status: 'ACTIVE',
+    archivedAt: null,
     order: 0,
     createdAt: now,
     updatedAt: now,
@@ -67,6 +96,8 @@ export async function seedDatabase() {
     categoryId: cat2Id as number,
     projectId: projectId as number,
     name: '소켓 통신',
+    status: 'ACTIVE',
+    archivedAt: null,
     order: 0,
     createdAt: now,
     updatedAt: now,
@@ -76,6 +107,8 @@ export async function seedDatabase() {
     categoryId: cat2Id as number,
     projectId: projectId as number,
     name: '재연결 정책',
+    status: 'ACTIVE',
+    archivedAt: null,
     order: 1,
     createdAt: now,
     updatedAt: now,
@@ -98,6 +131,7 @@ export async function seedDatabase() {
         { id: '2', text: 'Create/Destroy 함수 선언', done: true },
         { id: '3', text: 'SendSync 함수 선언', done: true },
       ],
+      archivedAt: null,
       createdAt: now,
       updatedAt: now,
     },
@@ -117,6 +151,7 @@ export async function seedDatabase() {
         { id: '2', text: 'connect() 구현', done: true },
         { id: '3', text: 'send/recv 타임아웃', done: false },
       ],
+      archivedAt: null,
       createdAt: now,
       updatedAt: now,
     },
@@ -132,6 +167,7 @@ export async function seedDatabase() {
       dueDate: '2026-03-20',
       progress: 0,
       checklist: [],
+      archivedAt: null,
       createdAt: now,
       updatedAt: now,
     },

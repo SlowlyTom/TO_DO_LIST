@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
-import { useProject } from '../hooks/useProjects'
+import { useProject, useProjects } from '../hooks/useProjects'
 import { useTasksByProject } from '../hooks/useTasks'
 import { ProjectTreeView } from '../features/projects/ProjectTreeView'
 import { TaskSlideover } from '../features/tasks/TaskSlideover'
@@ -9,12 +9,14 @@ import { Button } from '../components/ui/Button'
 import { ProjectForm } from '../features/projects/ProjectForm'
 import { ProjectStatusBadge } from '../components/ui/Badge'
 import { ProgressBar } from '../components/ui/ProgressBar'
+import { ShowCompletedToggle } from '../components/ui/ShowCompletedToggle'
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>()
   const projectId = id ? Number(id) : null
   const project = useProject(projectId)
   const tasks = useTasksByProject(projectId)
+  const { archiveProject } = useProjects()
   const navigate = useNavigate()
   const [showEdit, setShowEdit] = useState(false)
 
@@ -39,6 +41,15 @@ export default function ProjectDetailPage() {
     ? Math.round(tasks.reduce((s, t) => s + t.progress, 0) / total)
     : 0
 
+  const isCompleted = project.status === 'COMPLETED' || project.status === 'CANCELLED'
+
+  async function handleArchive() {
+    if (!projectId) return
+    if (!confirm('프로젝트를 보관함으로 이동하시겠습니까?')) return
+    await archiveProject(projectId)
+    navigate('/projects')
+  }
+
   return (
     <div className="p-6 max-w-5xl mx-auto">
       {/* Breadcrumb */}
@@ -62,7 +73,15 @@ export default function ProjectDetailPage() {
             <p className="text-sm text-gray-500">{project.description}</p>
           )}
         </div>
-        <Button variant="secondary" size="sm" onClick={() => setShowEdit(true)}>수정</Button>
+        <div className="flex items-center gap-2">
+          <ShowCompletedToggle />
+          {isCompleted && (
+            <Button variant="secondary" size="sm" onClick={handleArchive} className="text-gray-500">
+              보관
+            </Button>
+          )}
+          <Button variant="secondary" size="sm" onClick={() => setShowEdit(true)}>수정</Button>
+        </div>
       </div>
 
       {/* Progress overview */}

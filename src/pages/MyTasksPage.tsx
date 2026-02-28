@@ -5,6 +5,7 @@ import { TaskSlideover } from '../features/tasks/TaskSlideover'
 import { StatusBadge, PriorityBadge } from '../components/ui/Badge'
 import { Select } from '../components/ui/Select'
 import { ProgressBar } from '../components/ui/ProgressBar'
+import { ShowCompletedToggle } from '../components/ui/ShowCompletedToggle'
 import type { TaskStatus, TaskPriority } from '../types'
 
 const statusFilterOptions = [
@@ -33,7 +34,7 @@ const priorityOrder: Record<TaskPriority, number> = { CRITICAL: 0, HIGH: 1, MEDI
 
 export default function MyTasksPage() {
   const tasks = useAllTasks()
-  const { openTaskSlideover } = useUiStore()
+  const { openTaskSlideover, showCompleted } = useUiStore()
   const [statusFilter, setStatusFilter] = useState<TaskStatus | ''>('')
   const [priorityFilter, setPriorityFilter] = useState<TaskPriority | ''>('')
   const [sortBy, setSortBy] = useState('dueDate')
@@ -43,6 +44,9 @@ export default function MyTasksPage() {
 
   const filtered = useMemo(() => {
     let result = [...tasks]
+
+    // Hide DONE if showCompleted is false and no explicit DONE filter selected
+    if (!showCompleted && !statusFilter) result = result.filter((t) => t.status !== 'DONE')
 
     if (statusFilter) result = result.filter((t) => t.status === statusFilter)
     if (priorityFilter) result = result.filter((t) => t.priority === priorityFilter)
@@ -65,7 +69,7 @@ export default function MyTasksPage() {
     })
 
     return result
-  }, [tasks, statusFilter, priorityFilter, sortBy, dueDateFilter, today])
+  }, [tasks, statusFilter, priorityFilter, sortBy, dueDateFilter, today, showCompleted])
 
   function dueDateClass(dueDate: string) {
     if (!dueDate) return 'text-gray-400'
@@ -77,7 +81,10 @@ export default function MyTasksPage() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
-      <h1 className="text-xl font-bold text-gray-900 mb-5">내 태스크</h1>
+      <div className="flex items-center justify-between mb-5">
+        <h1 className="text-xl font-bold text-gray-900">내 ACTION</h1>
+        <ShowCompletedToggle />
+      </div>
 
       {/* Filters */}
       <div className="bg-white border border-gray-200 rounded-xl p-4 mb-5">
@@ -114,13 +121,13 @@ export default function MyTasksPage() {
             />
           </div>
         </div>
-        <p className="text-xs text-gray-400 mt-2">{filtered.length}개 태스크</p>
+        <p className="text-xs text-gray-400 mt-2">{filtered.length}개 ACTION</p>
       </div>
 
       {/* Task list */}
       {filtered.length === 0 ? (
         <div className="text-center py-16 text-gray-400 text-sm">
-          해당하는 태스크가 없습니다.
+          해당하는 ACTION이 없습니다.
         </div>
       ) : (
         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
@@ -139,10 +146,12 @@ export default function MyTasksPage() {
                 <tr
                   key={task.id}
                   onClick={() => openTaskSlideover(task.id!)}
-                  className="hover:bg-gray-50 cursor-pointer transition-colors"
+                  className={`hover:bg-gray-50 cursor-pointer transition-colors ${task.status === 'DONE' ? 'opacity-60' : ''}`}
                 >
                   <td className="px-4 py-3"><StatusBadge status={task.status} /></td>
-                  <td className="px-4 py-3 text-sm text-gray-800 max-w-xs truncate">{task.title}</td>
+                  <td className={`px-4 py-3 text-sm text-gray-800 max-w-xs truncate ${task.status === 'DONE' ? 'line-through text-gray-400' : ''}`}>
+                    {task.title}
+                  </td>
                   <td className="px-4 py-3"><PriorityBadge priority={task.priority} /></td>
                   <td className={`px-4 py-3 text-xs ${dueDateClass(task.dueDate)}`}>
                     {task.dueDate || '—'}

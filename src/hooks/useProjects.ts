@@ -3,15 +3,22 @@ import { db } from '../db/database'
 import type { Project } from '../types'
 
 export function useProjects() {
-  const projects = useLiveQuery(() => db.projects.orderBy('createdAt').toArray(), [])
+  const projects = useLiveQuery(
+    () => db.projects.orderBy('createdAt').filter((p) => p.archivedAt == null).toArray(),
+    []
+  )
 
-  async function createProject(data: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) {
+  async function createProject(data: Omit<Project, 'id' | 'createdAt' | 'updatedAt' | 'archivedAt'>) {
     const now = new Date().toISOString()
-    return db.projects.add({ ...data, createdAt: now, updatedAt: now })
+    return db.projects.add({ ...data, archivedAt: null, createdAt: now, updatedAt: now })
   }
 
   async function updateProject(id: number, data: Partial<Omit<Project, 'id' | 'createdAt'>>) {
     return db.projects.update(id, { ...data, updatedAt: new Date().toISOString() })
+  }
+
+  async function archiveProject(id: number) {
+    return db.projects.update(id, { archivedAt: new Date().toISOString(), updatedAt: new Date().toISOString() })
   }
 
   async function deleteProject(id: number) {
@@ -34,7 +41,7 @@ export function useProjects() {
     })
   }
 
-  return { projects: projects ?? [], createProject, updateProject, deleteProject }
+  return { projects: projects ?? [], createProject, updateProject, archiveProject, deleteProject }
 }
 
 export function useProject(id: number | null) {

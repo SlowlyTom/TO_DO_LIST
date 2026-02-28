@@ -103,7 +103,7 @@ export function Sidebar() {
         <NavItem
           to="/my-tasks"
           collapsed={sidebarCollapsed}
-          label="내 태스크"
+          label="내 ACTION"
           icon={
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -111,8 +111,19 @@ export function Sidebar() {
             </svg>
           }
         />
+        <NavItem
+          to="/archive"
+          collapsed={sidebarCollapsed}
+          label="보관함"
+          icon={
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8l1 12a2 2 0 002 2h8a2 2 0 002-2L19 8" />
+            </svg>
+          }
+        />
 
-        {/* Projects list */}
+        {/* Projects list — only non-archived */}
         {!sidebarCollapsed && projects.length > 0 && (
           <div className="pt-3">
             <p className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">프로젝트</p>

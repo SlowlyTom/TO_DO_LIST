@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { ImportModal } from '../../features/tasks/ImportModal'
+import { ToastContainer } from '../ui/ToastContainer'
 
 export function MainLayout() {
   return (
@@ -10,6 +11,7 @@ export function MainLayout() {
         <Outlet />
       </main>
       <ImportModal />
+      <ToastContainer />
     </div>
   )
 }

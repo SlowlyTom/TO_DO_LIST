@@ -1,5 +1,5 @@
 import { db } from '../db/database'
-import type { BackupData } from '../types'
+import type { BackupData, Category, SubCategory, Task, Project } from '../types'
 
 export function useDataTransfer() {
   async function exportData() {
@@ -12,7 +12,7 @@ export function useDataTransfer() {
     ])
 
     const backup: BackupData = {
-      version: '1.0',
+      version: '2.0',
       exportedAt: new Date().toISOString(),
       projects,
       categories,
@@ -40,6 +40,26 @@ export function useDataTransfer() {
       throw new Error('올바른 백업 파일이 아닙니다.')
     }
 
+    // Normalize v1.0 backups: add missing fields with defaults (spread last so real values win)
+    const normalizedProjects: Project[] = backup.projects.map((p) => ({
+      ...p,
+      archivedAt: p.archivedAt ?? null,
+    }))
+    const normalizedCategories: Category[] = backup.categories.map((c) => ({
+      ...c,
+      status: (c.status ?? 'ACTIVE') as Category['status'],
+      archivedAt: c.archivedAt ?? null,
+    }))
+    const normalizedSubCategories: SubCategory[] = backup.subCategories.map((s) => ({
+      ...s,
+      status: (s.status ?? 'ACTIVE') as SubCategory['status'],
+      archivedAt: s.archivedAt ?? null,
+    }))
+    const normalizedTasks: Task[] = backup.tasks.map((t) => ({
+      ...t,
+      archivedAt: t.archivedAt ?? null,
+    }))
+
     await db.transaction('rw', db.projects, db.categories, db.subCategories, db.tasks, db.taskHistory, async () => {
       if (mode === 'overwrite') {
         await db.taskHistory.clear()
@@ -48,16 +68,16 @@ export function useDataTransfer() {
         await db.categories.clear()
         await db.projects.clear()
 
-        await db.projects.bulkAdd(backup.projects)
-        await db.categories.bulkAdd(backup.categories)
-        await db.subCategories.bulkAdd(backup.subCategories)
-        await db.tasks.bulkAdd(backup.tasks)
+        await db.projects.bulkAdd(normalizedProjects)
+        await db.categories.bulkAdd(normalizedCategories)
+        await db.subCategories.bulkAdd(normalizedSubCategories)
+        await db.tasks.bulkAdd(normalizedTasks)
         await db.taskHistory.bulkAdd(backup.taskHistory)
       } else {
         // Merge: add records with new IDs (strip existing IDs to avoid conflicts)
         const idMap = new Map<number, number>()
 
-        for (const p of backup.projects) {
+        for (const p of normalizedProjects) {
           const oldId = p.id!
           const { id: _id, ...rest } = p
           const newId = await db.projects.add(rest as typeof p)
@@ -65,7 +85,7 @@ export function useDataTransfer() {
         }
 
         const catIdMap = new Map<number, number>()
-        for (const c of backup.categories) {
+        for (const c of normalizedCategories) {
           const oldId = c.id!
           const { id: _id, ...rest } = c
           const newId = await db.categories.add({
@@ -76,7 +96,7 @@ export function useDataTransfer() {
         }
 
         const subCatIdMap = new Map<number, number>()
-        for (const s of backup.subCategories) {
+        for (const s of normalizedSubCategories) {
           const oldId = s.id!
           const { id: _id, ...rest } = s
           const newId = await db.subCategories.add({
@@ -88,7 +108,7 @@ export function useDataTransfer() {
         }
 
         const taskIdMap = new Map<number, number>()
-        for (const t of backup.tasks) {
+        for (const t of normalizedTasks) {
           const oldId = t.id!
           const { id: _id, ...rest } = t
           const newId = await db.tasks.add({

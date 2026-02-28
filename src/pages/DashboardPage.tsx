@@ -6,16 +6,23 @@ import { Modal } from '../components/ui/Modal'
 import { Button } from '../components/ui/Button'
 import { ProjectForm } from '../features/projects/ProjectForm'
 import { TaskSlideover } from '../features/tasks/TaskSlideover'
+import { ShowCompletedToggle } from '../components/ui/ShowCompletedToggle'
 import { useAllTasks } from '../hooks/useTasks'
+import { useUiStore } from '../stores/uiStore'
 
 export default function DashboardPage() {
   const { projects } = useProjects()
   const tasks = useAllTasks()
+  const { showCompleted } = useUiStore()
   const [showCreateProject, setShowCreateProject] = useState(false)
 
   const todoCount = tasks.filter((t) => t.status === 'TODO').length
   const inProgressCount = tasks.filter((t) => t.status === 'IN_PROGRESS').length
   const doneCount = tasks.filter((t) => t.status === 'DONE').length
+
+  const visibleProjects = showCompleted
+    ? projects
+    : projects.filter((p) => p.status !== 'COMPLETED' && p.status !== 'CANCELLED')
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
@@ -25,9 +32,12 @@ export default function DashboardPage() {
           <h1 className="text-xl font-bold text-gray-900">대시보드</h1>
           <p className="text-sm text-gray-500 mt-0.5">PMC SW 개발 태스크 현황</p>
         </div>
-        <Button onClick={() => setShowCreateProject(true)}>
-          + 프로젝트 추가
-        </Button>
+        <div className="flex items-center gap-2">
+          <ShowCompletedToggle />
+          <Button onClick={() => setShowCreateProject(true)}>
+            + 프로젝트 추가
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -48,15 +58,15 @@ export default function DashboardPage() {
 
       {/* Project cards */}
       <div className="mb-6">
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">프로젝트 ({projects.length})</h2>
-        {projects.length === 0 ? (
+        <h2 className="text-sm font-semibold text-gray-700 mb-3">프로젝트 ({visibleProjects.length})</h2>
+        {visibleProjects.length === 0 ? (
           <div className="bg-white border-2 border-dashed border-gray-200 rounded-xl p-10 text-center">
             <p className="text-gray-400 text-sm mb-3">아직 프로젝트가 없습니다.</p>
             <Button variant="secondary" onClick={() => setShowCreateProject(true)}>첫 프로젝트 만들기</Button>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {projects.map((p) => (
+            {visibleProjects.map((p) => (
               <ProjectCard key={p.id} project={p} />
             ))}
           </div>

@@ -1,6 +1,7 @@
 export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'DONE'
 export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
 export type ProjectStatus = 'ACTIVE' | 'ON_HOLD' | 'COMPLETED' | 'CANCELLED'
+export type CategoryStatus = 'ACTIVE' | 'COMPLETED'
 
 export interface Project {
   id?: number
@@ -8,6 +9,7 @@ export interface Project {
   description: string
   status: ProjectStatus
   color: string
+  archivedAt: string | null
   createdAt: string
   updatedAt: string
 }
@@ -16,6 +18,8 @@ export interface Category {
   id?: number
   projectId: number
   name: string
+  status: CategoryStatus
+  archivedAt: string | null
   order: number
   createdAt: string
   updatedAt: string
@@ -26,6 +30,8 @@ export interface SubCategory {
   categoryId: number
   projectId: number
   name: string
+  status: CategoryStatus
+  archivedAt: string | null
   order: number
   createdAt: string
   updatedAt: string
@@ -50,6 +56,7 @@ export interface Task {
   dueDate: string
   progress: number
   checklist: ChecklistItem[]
+  archivedAt: string | null
   createdAt: string
   updatedAt: string
 }
@@ -61,6 +68,13 @@ export interface TaskHistory {
   oldValue: string
   newValue: string
   changedAt: string
+}
+
+// Toast notification
+export interface Toast {
+  id: string
+  message: string
+  action?: { label: string; onClick: () => void }
 }
 
 // Aggregated progress types

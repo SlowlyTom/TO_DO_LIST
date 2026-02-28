@@ -98,7 +98,7 @@ export function TaskSlideover() {
   const { isOpen, taskId } = taskSlideover
   const task = useTask(taskId)
   const history = useTaskHistory(taskId)
-  const { updateTask, deleteTask } = useTaskMutations()
+  const { updateTask, deleteTask, archiveTask } = useTaskMutations()
   const [editMode, setEditMode] = useState(false)
   const [form, setForm] = useState<Partial<Task>>({})
 
@@ -122,8 +122,14 @@ export function TaskSlideover() {
 
   async function handleDelete() {
     if (!taskId) return
-    if (!confirm('태스크를 삭제하시겠습니까?')) return
+    if (!confirm('ACTION을 삭제하시겠습니까?')) return
     await deleteTask(taskId)
+    closeTaskSlideover()
+  }
+
+  async function handleArchive() {
+    if (!taskId) return
+    await archiveTask(taskId)
     closeTaskSlideover()
   }
 
@@ -140,6 +146,20 @@ export function TaskSlideover() {
             {task && <PriorityBadge priority={task.priority} />}
           </div>
           <div className="flex items-center gap-1">
+            {!editMode && task?.status === 'DONE' && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={handleArchive}
+                className="text-gray-400 hover:text-gray-600"
+                title="보관함으로 이동"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8l1 12a2 2 0 002 2h8a2 2 0 002-2L19 8" />
+                </svg>
+              </Button>
+            )}
             {!editMode && (
               <Button size="sm" variant="ghost" onClick={() => setEditMode(true)}>
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -260,6 +280,23 @@ export function TaskSlideover() {
                     await updateTask(task.id!, { checklist: items })
                   }}
                 />
+              )}
+
+              {task.status === 'DONE' && (
+                <div className="pt-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleArchive}
+                    className="w-full text-gray-500"
+                  >
+                    <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                        d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8l1 12a2 2 0 002 2h8a2 2 0 002-2L19 8" />
+                    </svg>
+                    보관함으로 이동
+                  </Button>
+                </div>
               )}
 
               {/* History */}
