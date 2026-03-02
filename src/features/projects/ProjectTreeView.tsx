@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useCategories } from '../../hooks/useCategories'
 import { useSubCategories } from '../../hooks/useSubCategories'
 import { useTasks } from '../../hooks/useTasks'
@@ -10,6 +10,7 @@ import { Input } from '../../components/ui/Input'
 import { StatusBadge, PriorityBadge } from '../../components/ui/Badge'
 import { ProgressBar } from '../../components/ui/ProgressBar'
 import { TaskForm } from './TaskForm'
+import { sortTasks } from '../../utils/taskSort'
 
 // ─── SubCategory Row (TASK) ──────────────────────────────────────────────────
 function SubCategoryRow({
@@ -18,12 +19,16 @@ function SubCategoryRow({
   projectId,
   name,
   status,
+  searchQuery,
+  sortBy,
 }: {
   subCatId: number
   categoryId: number
   projectId: number
   name: string
   status: 'ACTIVE' | 'COMPLETED'
+  searchQuery: string
+  sortBy: string
 }) {
   const tasks = useTasks(subCatId)
   const { openTaskSlideover, showCompleted } = useUiStore()
@@ -34,8 +39,17 @@ function SubCategoryRow({
 
   const isCompleted = status === 'COMPLETED'
 
-  // Filter tasks based on showCompleted
-  const visibleTasks = showCompleted ? tasks : tasks.filter((t) => t.status !== 'DONE')
+  // Filter + sort tasks
+  const visibleTasks = useMemo(() => {
+    let result = showCompleted ? tasks : tasks.filter((t) => t.status !== 'DONE')
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase()
+      result = result.filter((t) =>
+        t.title.toLowerCase().includes(q) || t.description.toLowerCase().includes(q)
+      )
+    }
+    return sortBy !== 'default' ? sortTasks(result, sortBy) : result
+  }, [tasks, showCompleted, searchQuery, sortBy])
 
   const avgProgress = tasks.length
     ? Math.round(tasks.reduce((s, t) => s + t.progress, 0) / tasks.length)
@@ -140,11 +154,15 @@ function CategoryRow({
   projectId,
   name,
   status,
+  searchQuery,
+  sortBy,
 }: {
   catId: number
   projectId: number
   name: string
   status: 'ACTIVE' | 'COMPLETED'
+  searchQuery: string
+  sortBy: string
 }) {
   const { subCategories, createSubCategory } = useSubCategories(catId)
   const { deleteCategory, archiveCategory, reopenCategory } = useCategories(projectId)
@@ -230,6 +248,8 @@ function CategoryRow({
               projectId={projectId}
               name={s.name}
               status={s.status}
+              searchQuery={searchQuery}
+              sortBy={sortBy}
             />
           ))}
           {subCategories.length === 0 && (
@@ -258,7 +278,15 @@ function CategoryRow({
 }
 
 // ─── Main Tree View ──────────────────────────────────────────────────────────
-export function ProjectTreeView({ projectId }: { projectId: number }) {
+export function ProjectTreeView({
+  projectId,
+  searchQuery = '',
+  sortBy = 'default',
+}: {
+  projectId: number
+  searchQuery?: string
+  sortBy?: string
+}) {
   const { categories, createCategory } = useCategories(projectId)
   const [showCatForm, setShowCatForm] = useState(false)
   const [newCatName, setNewCatName] = useState('')
@@ -279,6 +307,8 @@ export function ProjectTreeView({ projectId }: { projectId: number }) {
           projectId={projectId}
           name={cat.name}
           status={cat.status}
+          searchQuery={searchQuery}
+          sortBy={sortBy}
         />
       ))}
 

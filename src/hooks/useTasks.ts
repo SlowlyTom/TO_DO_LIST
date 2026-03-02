@@ -171,5 +171,32 @@ export function useTaskMutations() {
     return db.tasks.update(id, { archivedAt: null, updatedAt: new Date().toISOString() })
   }
 
-  return { createTask, updateTask, deleteTask, archiveTask, restoreTask }
+  async function bulkUpdateTasks(ids: number[], data: Partial<Omit<Task, 'id' | 'createdAt'>>) {
+    const now = new Date().toISOString()
+    await db.transaction('rw', db.tasks, async () => {
+      for (const id of ids) {
+        await db.tasks.update(id, { ...data, updatedAt: now })
+      }
+    })
+  }
+
+  async function bulkArchiveTasks(ids: number[]) {
+    const now = new Date().toISOString()
+    await db.transaction('rw', db.tasks, async () => {
+      for (const id of ids) {
+        await db.tasks.update(id, { archivedAt: now, updatedAt: now })
+      }
+    })
+  }
+
+  async function bulkDeleteTasks(ids: number[]) {
+    await db.transaction('rw', db.tasks, db.taskHistory, async () => {
+      for (const id of ids) {
+        await db.taskHistory.where('taskId').equals(id).delete()
+        await db.tasks.delete(id)
+      }
+    })
+  }
+
+  return { createTask, updateTask, deleteTask, archiveTask, restoreTask, bulkUpdateTasks, bulkArchiveTasks, bulkDeleteTasks }
 }

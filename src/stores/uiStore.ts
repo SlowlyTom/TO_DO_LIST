@@ -40,6 +40,18 @@ interface UiStore {
   toasts: Toast[]
   addToast: (message: string, action?: Toast['action']) => void
   removeToast: (id: string) => void
+
+  // Bulk task selection (MyTasksPage)
+  selectedTaskIds: Set<number>
+  toggleSelectedTask: (id: number) => void
+  clearSelectedTasks: () => void
+  selectAllTasks: (ids: number[]) => void
+
+  // Browser notifications
+  notificationsEnabled: boolean
+  toggleNotifications: () => void
+  notifiedTaskIds: Set<number>
+  markTaskNotified: (id: number) => void
 }
 
 export const useUiStore = create<UiStore>((set) => ({
@@ -66,4 +78,23 @@ export const useUiStore = create<UiStore>((set) => ({
     set((s) => ({ toasts: [...s.toasts, { id, message, action }] }))
   },
   removeToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
+
+  selectedTaskIds: new Set<number>(),
+  toggleSelectedTask: (id) => set((s) => {
+    const next = new Set(s.selectedTaskIds)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    return { selectedTaskIds: next }
+  }),
+  clearSelectedTasks: () => set({ selectedTaskIds: new Set<number>() }),
+  selectAllTasks: (ids) => set({ selectedTaskIds: new Set(ids) }),
+
+  notificationsEnabled: false,
+  toggleNotifications: () => set((s) => ({ notificationsEnabled: !s.notificationsEnabled })),
+  notifiedTaskIds: new Set<number>(),
+  markTaskNotified: (id) => set((s) => {
+    const next = new Set(s.notifiedTaskIds)
+    next.add(id)
+    return { notifiedTaskIds: next }
+  }),
 }))

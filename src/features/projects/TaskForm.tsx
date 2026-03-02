@@ -35,15 +35,28 @@ export function TaskForm({ subCategoryId, categoryId, projectId, onClose }: Task
     assignee: '',
     dueDate: '',
     progress: 0,
+    tags: [] as string[],
   })
+  const [tagInput, setTagInput] = useState('')
   const [loading, setLoading] = useState(false)
+
+  function addTag(value: string) {
+    const trimmed = value.trim()
+    if (!trimmed || form.tags.includes(trimmed)) { setTagInput(''); return }
+    setForm((f) => ({ ...f, tags: [...f.tags, trimmed] }))
+    setTagInput('')
+  }
+
+  function removeTag(tag: string) {
+    setForm((f) => ({ ...f, tags: f.tags.filter((t) => t !== tag) }))
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!form.title.trim()) return
     setLoading(true)
     try {
-      await createTask({ ...form, subCategoryId, categoryId, projectId, checklist: [] })
+      await createTask({ ...form, subCategoryId, categoryId, projectId, checklist: [], blockedBy: [], recurrence: null })
       onClose()
     } finally {
       setLoading(false)
@@ -76,6 +89,32 @@ export function TaskForm({ subCategoryId, categoryId, projectId, onClose }: Task
           onChange={(e) => setForm((f) => ({ ...f, assignee: e.target.value }))} />
         <Input label="마감일" type="date" value={form.dueDate}
           onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))} />
+      </div>
+      <div className="space-y-1">
+        <label className="block text-sm font-medium text-gray-700">태그</label>
+        <div className="flex flex-wrap gap-1.5 mb-1">
+          {form.tags.map((tag) => (
+            <span key={tag} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-purple-50 text-purple-700 border border-purple-100">
+              {tag}
+              <button type="button" onClick={() => removeTag(tag)} className="hover:text-red-500">
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </span>
+          ))}
+        </div>
+        <input
+          type="text"
+          value={tagInput}
+          onChange={(e) => setTagInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') { e.preventDefault(); addTag(tagInput) }
+            if (e.key === ',') { e.preventDefault(); addTag(tagInput) }
+          }}
+          placeholder="태그 입력 후 Enter..."
+          className="w-full text-sm border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        />
       </div>
       <div className="flex gap-2 pt-1">
         <Button variant="secondary" className="flex-1" type="button" onClick={onClose}>취소</Button>

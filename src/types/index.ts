@@ -56,9 +56,19 @@ export interface Task {
   dueDate: string
   progress: number
   checklist: ChecklistItem[]
+  tags: string[]
+  blockedBy: number[]
+  recurrence: null
   archivedAt: string | null
   createdAt: string
   updatedAt: string
+}
+
+export interface TaskComment {
+  id?: number
+  taskId: number
+  text: string
+  createdAt: string
 }
 
 export interface TaskHistory {
@@ -104,4 +114,5 @@ export interface BackupData {
   subCategories: SubCategory[]
   tasks: Task[]
   taskHistory: TaskHistory[]
+  taskComments?: TaskComment[]
 }

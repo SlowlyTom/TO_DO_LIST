@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTask, useTaskHistory, useTaskMutations } from '../../hooks/useTasks'
+import { useTaskComments, useTaskCommentMutations } from '../../hooks/useTaskComments'
 import { useUiStore } from '../../stores/uiStore'
 import { StatusBadge, PriorityBadge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
@@ -88,6 +89,120 @@ function ChecklistSection({
           className="flex-1 text-sm border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
         <Button size="sm" variant="secondary" onClick={add}>추가</Button>
+      </div>
+    </div>
+  )
+}
+
+function TagsSection({
+  tags,
+  onChange,
+  readonly,
+}: {
+  tags: string[]
+  onChange?: (tags: string[]) => void
+  readonly?: boolean
+}) {
+  const [input, setInput] = useState('')
+
+  function addTag(value: string) {
+    const trimmed = value.trim()
+    if (!trimmed || tags.includes(trimmed)) { setInput(''); return }
+    onChange?.([...tags, trimmed])
+    setInput('')
+  }
+
+  function removeTag(tag: string) {
+    onChange?.(tags.filter((t) => t !== tag))
+  }
+
+  return (
+    <div className="space-y-2">
+      <span className="text-sm font-medium text-gray-700">태그</span>
+      <div className="flex flex-wrap gap-1.5 mt-1">
+        {tags.map((tag) => (
+          <span
+            key={tag}
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-purple-50 text-purple-700 border border-purple-100"
+          >
+            {tag}
+            {!readonly && (
+              <button onClick={() => removeTag(tag)} className="hover:text-red-500 transition-colors">
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </span>
+        ))}
+        {tags.length === 0 && readonly && (
+          <span className="text-xs text-gray-400">태그 없음</span>
+        )}
+      </div>
+      {!readonly && (
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ',') {
+              e.preventDefault()
+              addTag(input)
+            }
+          }}
+          placeholder="태그 입력 후 Enter..."
+          className="w-full text-sm border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        />
+      )}
+    </div>
+  )
+}
+
+function CommentsSection({ taskId }: { taskId: number }) {
+  const comments = useTaskComments(taskId)
+  const { addComment, deleteComment } = useTaskCommentMutations()
+  const [newText, setNewText] = useState('')
+
+  async function handleAdd() {
+    if (!newText.trim()) return
+    await addComment(taskId, newText.trim())
+    setNewText('')
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm font-medium text-gray-700">댓글 / 메모</p>
+      <ul className="space-y-2">
+        {comments.map((c) => (
+          <li key={c.id} className="group flex gap-2 bg-gray-50 rounded-lg px-3 py-2">
+            <div className="flex-1">
+              <p className="text-sm text-gray-700 whitespace-pre-wrap">{c.text}</p>
+              <p className="text-xs text-gray-400 mt-1">{c.createdAt.slice(0, 16).replace('T', ' ')}</p>
+            </div>
+            <button
+              onClick={() => deleteComment(c.id!)}
+              className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 transition-opacity self-start mt-1"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </li>
+        ))}
+        {comments.length === 0 && (
+          <li className="text-xs text-gray-400">댓글이 없습니다.</li>
+        )}
+      </ul>
+      <div className="flex gap-1.5">
+        <input
+          type="text"
+          value={newText}
+          onChange={(e) => setNewText(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+          placeholder="댓글 추가..."
+          className="flex-1 text-sm border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        />
+        <Button size="sm" variant="secondary" onClick={handleAdd}>추가</Button>
       </div>
     </div>
   )
@@ -238,6 +353,10 @@ export function TaskSlideover() {
                   className="w-full"
                 />
               </div>
+              <TagsSection
+                tags={form.tags ?? []}
+                onChange={(tags) => setForm((f) => ({ ...f, tags }))}
+              />
               <ChecklistSection
                 items={form.checklist ?? []}
                 onChange={(items) => setForm((f) => ({ ...f, checklist: items }))}
@@ -273,6 +392,10 @@ export function TaskSlideover() {
                 <ProgressBar value={task.progress} showLabel />
               </div>
 
+              {(task.tags ?? []).length > 0 && (
+                <TagsSection tags={task.tags ?? []} readonly />
+              )}
+
               {task.checklist.length > 0 && (
                 <ChecklistSection
                   items={task.checklist}
@@ -298,6 +421,9 @@ export function TaskSlideover() {
                   </Button>
                 </div>
               )}
+
+              {/* Comments */}
+              <CommentsSection taskId={task.id!} />
 
               {/* History */}
               {history.length > 0 && (

@@ -6,10 +6,19 @@ import { ProjectTreeView } from '../features/projects/ProjectTreeView'
 import { TaskSlideover } from '../features/tasks/TaskSlideover'
 import { Modal } from '../components/ui/Modal'
 import { Button } from '../components/ui/Button'
+import { Select } from '../components/ui/Select'
 import { ProjectForm } from '../features/projects/ProjectForm'
 import { ProjectStatusBadge } from '../components/ui/Badge'
 import { ProgressBar } from '../components/ui/ProgressBar'
 import { ShowCompletedToggle } from '../components/ui/ShowCompletedToggle'
+
+const treeSortOptions = [
+  { value: 'default', label: '기본 순서' },
+  { value: 'dueDate', label: '마감일 순' },
+  { value: 'priority', label: '우선순위 순' },
+  { value: 'progress', label: '진척율 순' },
+  { value: 'title', label: '제목 순' },
+]
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -19,6 +28,8 @@ export default function ProjectDetailPage() {
   const { archiveProject } = useProjects()
   const navigate = useNavigate()
   const [showEdit, setShowEdit] = useState(false)
+  const [treeSearch, setTreeSearch] = useState('')
+  const [treeSortBy, setTreeSortBy] = useState('default')
 
   if (project === undefined) {
     return <div className="p-6 text-sm text-gray-400">로딩 중...</div>
@@ -74,6 +85,19 @@ export default function ProjectDetailPage() {
           )}
         </div>
         <div className="flex items-center gap-2">
+          <input
+            type="text"
+            value={treeSearch}
+            onChange={(e) => setTreeSearch(e.target.value)}
+            placeholder="ACTION 검색..."
+            className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 w-40"
+          />
+          <Select
+            value={treeSortBy}
+            options={treeSortOptions}
+            onChange={(e) => setTreeSortBy(e.target.value)}
+            className="w-36"
+          />
           <ShowCompletedToggle />
           {isCompleted && (
             <Button variant="secondary" size="sm" onClick={handleArchive} className="text-gray-500">
@@ -108,7 +132,7 @@ export default function ProjectDetailPage() {
       </div>
 
       {/* Tree view */}
-      {projectId && <ProjectTreeView projectId={projectId} />}
+      {projectId && <ProjectTreeView projectId={projectId} searchQuery={treeSearch} sortBy={treeSortBy} />}
 
       <Modal isOpen={showEdit} onClose={() => setShowEdit(false)} title="프로젝트 수정" size="md">
         <ProjectForm project={project} onClose={() => setShowEdit(false)} />

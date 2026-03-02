@@ -3,22 +3,24 @@ import type { BackupData, Category, SubCategory, Task, Project } from '../types'
 
 export function useDataTransfer() {
   async function exportData() {
-    const [projects, categories, subCategories, tasks, taskHistory] = await Promise.all([
+    const [projects, categories, subCategories, tasks, taskHistory, taskComments] = await Promise.all([
       db.projects.toArray(),
       db.categories.toArray(),
       db.subCategories.toArray(),
       db.tasks.toArray(),
       db.taskHistory.toArray(),
+      db.taskComments.toArray(),
     ])
 
     const backup: BackupData = {
-      version: '2.0',
+      version: '4.0',
       exportedAt: new Date().toISOString(),
       projects,
       categories,
       subCategories,
       tasks,
       taskHistory,
+      taskComments,
     }
 
     const json = JSON.stringify(backup, null, 2)
@@ -58,10 +60,16 @@ export function useDataTransfer() {
     const normalizedTasks: Task[] = backup.tasks.map((t) => ({
       ...t,
       archivedAt: t.archivedAt ?? null,
+      tags: Array.isArray(t.tags) ? t.tags : [],
+      blockedBy: Array.isArray(t.blockedBy) ? t.blockedBy : [],
+      recurrence: t.recurrence ?? null,
     }))
 
-    await db.transaction('rw', db.projects, db.categories, db.subCategories, db.tasks, db.taskHistory, async () => {
+    const normalizedComments = (backup.taskComments ?? [])
+
+    await db.transaction('rw', db.tables, async () => {
       if (mode === 'overwrite') {
+        await db.taskComments.clear()
         await db.taskHistory.clear()
         await db.tasks.clear()
         await db.subCategories.clear()
@@ -73,6 +81,7 @@ export function useDataTransfer() {
         await db.subCategories.bulkAdd(normalizedSubCategories)
         await db.tasks.bulkAdd(normalizedTasks)
         await db.taskHistory.bulkAdd(backup.taskHistory)
+        await db.taskComments.bulkAdd(normalizedComments)
       } else {
         // Merge: add records with new IDs (strip existing IDs to avoid conflicts)
         const idMap = new Map<number, number>()
@@ -126,6 +135,14 @@ export function useDataTransfer() {
             ...rest,
             taskId: taskIdMap.get(rest.taskId) ?? rest.taskId,
           } as typeof h)
+        }
+
+        for (const cm of normalizedComments) {
+          const { id: _id, ...rest } = cm
+          await db.taskComments.add({
+            ...rest,
+            taskId: taskIdMap.get(rest.taskId) ?? rest.taskId,
+          })
         }
       }
     })

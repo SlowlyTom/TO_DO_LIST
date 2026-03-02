@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie'
-import type { Project, Category, SubCategory, Task, TaskHistory, CategoryStatus } from '../types'
+import type { Project, Category, SubCategory, Task, TaskHistory, TaskComment, CategoryStatus } from '../types'
 
 export class PmcDatabase extends Dexie {
   projects!: Table<Project>
@@ -7,6 +7,7 @@ export class PmcDatabase extends Dexie {
   subCategories!: Table<SubCategory>
   tasks!: Table<Task>
   taskHistory!: Table<TaskHistory>
+  taskComments!: Table<TaskComment>
 
   constructor() {
     super('PmcTaskBoard')
@@ -38,6 +39,29 @@ export class PmcDatabase extends Dexie {
       await tx.table('tasks').toCollection().modify((t: Task) => {
         if (t.archivedAt === undefined) t.archivedAt = null
       })
+    })
+    // v3: tags, blockedBy, recurrence reserved fields on tasks
+    this.version(3).stores({
+      projects:      '++id, name, status, archivedAt, createdAt, updatedAt',
+      categories:    '++id, projectId, status, archivedAt, order, createdAt, updatedAt',
+      subCategories: '++id, categoryId, projectId, status, archivedAt, order, createdAt, updatedAt',
+      tasks:         '++id, subCategoryId, categoryId, projectId, status, priority, archivedAt, dueDate, createdAt, updatedAt',
+      taskHistory:   '++id, taskId, changedAt',
+    }).upgrade(async tx => {
+      await tx.table('tasks').toCollection().modify((t: Task) => {
+        if (!Array.isArray(t.tags)) t.tags = []
+        if (!Array.isArray(t.blockedBy)) t.blockedBy = []
+        if (t.recurrence === undefined) t.recurrence = null
+      })
+    })
+    // v4: taskComments table
+    this.version(4).stores({
+      projects:      '++id, name, status, archivedAt, createdAt, updatedAt',
+      categories:    '++id, projectId, status, archivedAt, order, createdAt, updatedAt',
+      subCategories: '++id, categoryId, projectId, status, archivedAt, order, createdAt, updatedAt',
+      tasks:         '++id, subCategoryId, categoryId, projectId, status, priority, archivedAt, dueDate, createdAt, updatedAt',
+      taskHistory:   '++id, taskId, changedAt',
+      taskComments:  '++id, taskId, createdAt',
     })
   }
 }
@@ -131,6 +155,9 @@ export async function seedDatabase() {
         { id: '2', text: 'Create/Destroy 함수 선언', done: true },
         { id: '3', text: 'SendSync 함수 선언', done: true },
       ],
+      tags: ['설계', 'API'],
+      blockedBy: [],
+      recurrence: null,
       archivedAt: null,
       createdAt: now,
       updatedAt: now,
@@ -151,6 +178,9 @@ export async function seedDatabase() {
         { id: '2', text: 'connect() 구현', done: true },
         { id: '3', text: 'send/recv 타임아웃', done: false },
       ],
+      tags: ['소켓', '구현'],
+      blockedBy: [],
+      recurrence: null,
       archivedAt: null,
       createdAt: now,
       updatedAt: now,
@@ -167,6 +197,9 @@ export async function seedDatabase() {
       dueDate: '2026-03-20',
       progress: 0,
       checklist: [],
+      tags: [],
+      blockedBy: [],
+      recurrence: null,
       archivedAt: null,
       createdAt: now,
       updatedAt: now,
