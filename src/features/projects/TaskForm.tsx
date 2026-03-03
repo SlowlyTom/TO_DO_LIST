@@ -3,7 +3,8 @@ import { Input, Textarea } from '../../components/ui/Input'
 import { Select } from '../../components/ui/Select'
 import { Button } from '../../components/ui/Button'
 import { useTaskMutations } from '../../hooks/useTasks'
-import type { TaskStatus, TaskPriority } from '../../types'
+import { RecurrenceSection } from '../tasks/RecurrenceSection'
+import type { TaskStatus, TaskPriority, RecurrenceConfig } from '../../types'
 
 const statusOptions = [
   { value: 'TODO', label: 'TODO' },
@@ -36,6 +37,7 @@ export function TaskForm({ subCategoryId, categoryId, projectId, onClose }: Task
     dueDate: '',
     progress: 0,
     tags: [] as string[],
+    recurrence: null as RecurrenceConfig | null,
   })
   const [tagInput, setTagInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -56,7 +58,7 @@ export function TaskForm({ subCategoryId, categoryId, projectId, onClose }: Task
     if (!form.title.trim()) return
     setLoading(true)
     try {
-      await createTask({ ...form, subCategoryId, categoryId, projectId, checklist: [], blockedBy: [], recurrence: null })
+      await createTask({ ...form, subCategoryId, categoryId, projectId, checklist: [], blockedBy: [] })
       onClose()
     } finally {
       setLoading(false)
@@ -116,6 +118,10 @@ export function TaskForm({ subCategoryId, categoryId, projectId, onClose }: Task
           className="w-full text-sm border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
       </div>
+      <RecurrenceSection
+        value={form.recurrence}
+        onChange={(v) => setForm((f) => ({ ...f, recurrence: v }))}
+      />
       <div className="flex gap-2 pt-1">
         <Button variant="secondary" className="flex-1" type="button" onClick={onClose}>취소</Button>
         <Button className="flex-1" type="submit" loading={loading}>생성</Button>

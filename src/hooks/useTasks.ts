@@ -45,6 +45,13 @@ export function useTaskHistory(taskId: number | null) {
   ) ?? []
 }
 
+function computeNextDueDate(currentDueDate: string, intervalDays: number): string {
+  if (!currentDueDate) return ''
+  const d = new Date(currentDueDate)
+  d.setDate(d.getDate() + intervalDays)
+  return d.toISOString().split('T')[0]
+}
+
 export function useTaskMutations() {
   async function createTask(data: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'archivedAt'>) {
     const now = new Date().toISOString()
@@ -60,6 +67,23 @@ export function useTaskMutations() {
 
     await db.transaction('rw', db.tasks, db.taskHistory, db.subCategories, db.categories, async () => {
       await db.tasks.update(id, { ...data, updatedAt: now })
+
+      // 반복 태스크: DONE으로 변경되면 다음 회차 자동 생성 (상향 캐스케이드 체크 전에 실행)
+      if (data.status === 'DONE' && existing.recurrence) {
+        const cfg = existing.recurrence
+        await db.tasks.add({
+          ...existing,
+          id: undefined,
+          status: 'TODO',
+          progress: 0,
+          checklist: existing.checklist.map((item) => ({ ...item, done: false })),
+          blockedBy: [],
+          dueDate: computeNextDueDate(existing.dueDate, cfg.intervalDays),
+          archivedAt: null,
+          createdAt: now,
+          updatedAt: now,
+        })
+      }
 
       for (const field of fields) {
         if (field === 'updatedAt') continue

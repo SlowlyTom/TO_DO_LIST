@@ -2,6 +2,12 @@ export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'DONE'
 export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
 export type ProjectStatus = 'ACTIVE' | 'ON_HOLD' | 'COMPLETED' | 'CANCELLED'
 export type CategoryStatus = 'ACTIVE' | 'COMPLETED'
+export type RecurrenceType = 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY' | 'CUSTOM'
+
+export interface RecurrenceConfig {
+  type: RecurrenceType
+  intervalDays: number
+}
 
 export interface Project {
   id?: number
@@ -58,7 +64,7 @@ export interface Task {
   checklist: ChecklistItem[]
   tags: string[]
   blockedBy: number[]
-  recurrence: null
+  recurrence: RecurrenceConfig | null
   archivedAt: string | null
   createdAt: string
   updatedAt: string

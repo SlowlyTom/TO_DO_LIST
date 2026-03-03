@@ -7,7 +7,8 @@ import { Button } from '../../components/ui/Button'
 import { Input, Textarea } from '../../components/ui/Input'
 import { Select } from '../../components/ui/Select'
 import { ProgressBar } from '../../components/ui/ProgressBar'
-import type { Task, TaskStatus, TaskPriority, ChecklistItem } from '../../types'
+import { RecurrenceSection, recurrenceLabel } from './RecurrenceSection'
+import type { Task, TaskStatus, TaskPriority, ChecklistItem, RecurrenceConfig } from '../../types'
 
 const statusOptions = [
   { value: 'TODO', label: 'TODO' },
@@ -361,6 +362,10 @@ export function TaskSlideover() {
                 items={form.checklist ?? []}
                 onChange={(items) => setForm((f) => ({ ...f, checklist: items }))}
               />
+              <RecurrenceSection
+                value={form.recurrence ?? null}
+                onChange={(v) => setForm((f) => ({ ...f, recurrence: v as RecurrenceConfig | null }))}
+              />
               <div className="flex gap-2 pt-2">
                 <Button variant="secondary" className="flex-1" onClick={() => { setForm(task); setEditMode(false) }}>취소</Button>
                 <Button className="flex-1" onClick={handleSave}>저장</Button>
@@ -394,6 +399,16 @@ export function TaskSlideover() {
 
               {(task.tags ?? []).length > 0 && (
                 <TagsSection tags={task.tags ?? []} readonly />
+              )}
+
+              {task.recurrence && (
+                <div className="flex items-center gap-2 text-sm">
+                  <svg className="w-4 h-4 text-blue-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  <span className="text-blue-600 font-medium">{recurrenceLabel(task.recurrence)}</span>
+                </div>
               )}
 
               {task.checklist.length > 0 && (

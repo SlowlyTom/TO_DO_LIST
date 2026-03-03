@@ -14,7 +14,25 @@ export function useProjects() {
   }
 
   async function updateProject(id: number, data: Partial<Omit<Project, 'id' | 'createdAt'>>) {
-    return db.projects.update(id, { ...data, updatedAt: new Date().toISOString() })
+    const now = new Date().toISOString()
+    const isFinishing = data.status === 'COMPLETED' || data.status === 'CANCELLED'
+
+    if (isFinishing) {
+      const cascade = window.confirm(
+        '하위 EPIC / TASK / ACTION을 모두 완료 처리하시겠습니까?\n\n확인: 하위 항목 일괄 완료\n취소: 프로젝트 상태만 변경'
+      )
+      if (cascade) {
+        await db.transaction('rw', db.projects, db.categories, db.subCategories, db.tasks, async () => {
+          await db.projects.update(id, { ...data, updatedAt: now })
+          await db.categories.where('projectId').equals(id).modify({ status: 'COMPLETED', updatedAt: now })
+          await db.subCategories.where('projectId').equals(id).modify({ status: 'COMPLETED', updatedAt: now })
+          await db.tasks.where('projectId').equals(id).filter((t) => t.archivedAt == null).modify({ status: 'DONE', updatedAt: now })
+        })
+        return
+      }
+    }
+
+    return db.projects.update(id, { ...data, updatedAt: now })
   }
 
   async function archiveProject(id: number) {
