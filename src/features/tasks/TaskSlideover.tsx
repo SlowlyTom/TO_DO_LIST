@@ -253,10 +253,10 @@ export function TaskSlideover() {
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/20" onClick={closeTaskSlideover} />
-      <aside className="fixed right-0 top-0 h-full w-full max-w-md z-50 bg-white shadow-2xl flex flex-col overflow-hidden">
+      <div className="fixed inset-0 z-40 bg-black/20 dark:bg-black/40" onClick={closeTaskSlideover} />
+      <aside className="fixed right-0 top-0 h-full w-full max-w-md z-50 bg-white dark:bg-gray-800 shadow-2xl flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-700">
           <div className="flex items-center gap-2">
             {task && <StatusBadge status={task.status} />}
             {task && <PriorityBadge priority={task.priority} />}
@@ -299,9 +299,9 @@ export function TaskSlideover() {
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-5">
+        <div className="flex-1 overflow-y-auto p-5 space-y-5 dark:text-gray-100">
           {!task ? (
-            <p className="text-sm text-gray-400">로딩 중...</p>
+            <p className="text-sm text-gray-400 dark:text-gray-500">로딩 중...</p>
           ) : editMode ? (
             /* Edit form */
             <div className="space-y-4">
@@ -338,7 +338,14 @@ export function TaskSlideover() {
                 label="마감일"
                 type="date"
                 value={form.dueDate ?? ''}
-                onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))}
+                onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value || null }))}
+              />
+              <Input
+                label="이슈 URL"
+                type="url"
+                value={form.issueUrl ?? ''}
+                placeholder="https://..."
+                onChange={(e) => setForm((f) => ({ ...f, issueUrl: e.target.value }))}
               />
               <div className="space-y-1">
                 <label className="block text-sm font-medium text-gray-700">
@@ -375,22 +382,36 @@ export function TaskSlideover() {
             /* View mode */
             <div className="space-y-5">
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">{task.title}</h2>
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{task.title}</h2>
                 {task.description && (
-                  <p className="mt-1 text-sm text-gray-500 whitespace-pre-wrap">{task.description}</p>
+                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 whitespace-pre-wrap">{task.description}</p>
                 )}
               </div>
 
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <p className="text-gray-400 text-xs mb-0.5">담당자</p>
-                  <p className="font-medium text-gray-800">{task.assignee || '—'}</p>
+                  <p className="text-gray-400 dark:text-gray-500 text-xs mb-0.5">담당자</p>
+                  <p className="font-medium text-gray-800 dark:text-gray-100">{task.assignee || '—'}</p>
                 </div>
                 <div>
-                  <p className="text-gray-400 text-xs mb-0.5">마감일</p>
-                  <p className="font-medium text-gray-800">{task.dueDate || '—'}</p>
+                  <p className="text-gray-400 dark:text-gray-500 text-xs mb-0.5">마감일</p>
+                  <p className="font-medium text-gray-800 dark:text-gray-100">{task.dueDate || '—'}</p>
                 </div>
               </div>
+              {task.issueUrl && (
+                <div className="text-sm">
+                  <p className="text-gray-400 dark:text-gray-500 text-xs mb-0.5">이슈 URL</p>
+                  <a
+                    href={task.issueUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 dark:text-blue-400 hover:underline break-all"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {task.issueUrl}
+                  </a>
+                </div>
+              )}
 
               <div>
                 <p className="text-xs text-gray-400 mb-1">진척율</p>

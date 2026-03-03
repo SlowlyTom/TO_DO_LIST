@@ -60,5 +60,13 @@ export function useCategories(projectId: number | null) {
     })
   }
 
-  return { categories: categories ?? [], createCategory, updateCategory, archiveCategory, restoreCategory, reopenCategory, deleteCategory }
+  async function reorderCategories(orderedIds: number[]) {
+    await db.transaction('rw', db.categories, async () => {
+      for (let i = 0; i < orderedIds.length; i++) {
+        await db.categories.update(orderedIds[i], { order: i, updatedAt: new Date().toISOString() })
+      }
+    })
+  }
+
+  return { categories: categories ?? [], createCategory, updateCategory, archiveCategory, restoreCategory, reopenCategory, deleteCategory, reorderCategories }
 }

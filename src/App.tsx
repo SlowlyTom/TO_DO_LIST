@@ -7,6 +7,7 @@ import MyTasksPage from './pages/MyTasksPage'
 import ArchivePage from './pages/ArchivePage'
 import { useEffect } from 'react'
 import { seedDatabase } from './db/database'
+import { useUiStore } from './stores/uiStore'
 
 function DatabaseInitializer() {
   useEffect(() => {
@@ -15,10 +16,19 @@ function DatabaseInitializer() {
   return null
 }
 
+function DarkModeSync() {
+  const isDarkMode = useUiStore((s) => s.isDarkMode)
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', isDarkMode)
+  }, [isDarkMode])
+  return null
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <DatabaseInitializer />
+      <DarkModeSync />
       <Routes>
         <Route element={<MainLayout />}>
           <Route path="/" element={<DashboardPage />} />

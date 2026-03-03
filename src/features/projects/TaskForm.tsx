@@ -34,7 +34,8 @@ export function TaskForm({ subCategoryId, categoryId, projectId, onClose }: Task
     status: 'TODO' as TaskStatus,
     priority: 'MEDIUM' as TaskPriority,
     assignee: '',
-    dueDate: '',
+    dueDate: null as string | null,
+    issueUrl: '',
     progress: 0,
     tags: [] as string[],
     recurrence: null as RecurrenceConfig | null,
@@ -58,7 +59,7 @@ export function TaskForm({ subCategoryId, categoryId, projectId, onClose }: Task
     if (!form.title.trim()) return
     setLoading(true)
     try {
-      await createTask({ ...form, subCategoryId, categoryId, projectId, checklist: [], blockedBy: [] })
+      await createTask({ ...form, subCategoryId, categoryId, projectId, checklist: [], blockedBy: [], order: 0 })
       onClose()
     } finally {
       setLoading(false)
@@ -89,14 +90,21 @@ export function TaskForm({ subCategoryId, categoryId, projectId, onClose }: Task
       <div className="grid grid-cols-2 gap-3">
         <Input label="담당자" value={form.assignee}
           onChange={(e) => setForm((f) => ({ ...f, assignee: e.target.value }))} />
-        <Input label="마감일" type="date" value={form.dueDate}
-          onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))} />
+        <Input label="마감일" type="date" value={form.dueDate ?? ''}
+          onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value || null }))} />
       </div>
+      <Input
+        label="이슈 URL"
+        type="url"
+        value={form.issueUrl}
+        placeholder="https://..."
+        onChange={(e) => setForm((f) => ({ ...f, issueUrl: e.target.value }))}
+      />
       <div className="space-y-1">
-        <label className="block text-sm font-medium text-gray-700">태그</label>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">태그</label>
         <div className="flex flex-wrap gap-1.5 mb-1">
           {form.tags.map((tag) => (
-            <span key={tag} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-purple-50 text-purple-700 border border-purple-100">
+            <span key={tag} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border border-purple-100 dark:border-purple-800">
               {tag}
               <button type="button" onClick={() => removeTag(tag)} className="hover:text-red-500">
                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -115,7 +123,7 @@ export function TaskForm({ subCategoryId, categoryId, projectId, onClose }: Task
             if (e.key === ',') { e.preventDefault(); addTag(tagInput) }
           }}
           placeholder="태그 입력 후 Enter..."
-          className="w-full text-sm border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="w-full text-sm border border-gray-200 dark:border-gray-600 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400"
         />
       </div>
       <RecurrenceSection

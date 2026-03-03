@@ -42,7 +42,7 @@ interface UiStore {
   removeToast: (id: string) => void
 
   // Bulk task selection (MyTasksPage)
-  selectedTaskIds: Set<number>
+  selectedTaskIds: number[]
   toggleSelectedTask: (id: number) => void
   clearSelectedTasks: () => void
   selectAllTasks: (ids: number[]) => void
@@ -52,6 +52,10 @@ interface UiStore {
   toggleNotifications: () => void
   notifiedTaskIds: Set<number>
   markTaskNotified: (id: number) => void
+
+  // Dark mode
+  isDarkMode: boolean
+  toggleDarkMode: () => void
 }
 
 export const useUiStore = create<UiStore>((set) => ({
@@ -74,27 +78,40 @@ export const useUiStore = create<UiStore>((set) => ({
 
   toasts: [],
   addToast: (message, action) => {
-    const id = Date.now().toString()
+    const id = crypto.randomUUID()
     set((s) => ({ toasts: [...s.toasts, { id, message, action }] }))
   },
   removeToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
 
-  selectedTaskIds: new Set<number>(),
-  toggleSelectedTask: (id) => set((s) => {
-    const next = new Set(s.selectedTaskIds)
-    if (next.has(id)) next.delete(id)
-    else next.add(id)
-    return { selectedTaskIds: next }
-  }),
-  clearSelectedTasks: () => set({ selectedTaskIds: new Set<number>() }),
-  selectAllTasks: (ids) => set({ selectedTaskIds: new Set(ids) }),
+  selectedTaskIds: [],
+  toggleSelectedTask: (id) => set((s) => ({
+    selectedTaskIds: s.selectedTaskIds.includes(id)
+      ? s.selectedTaskIds.filter((x) => x !== id)
+      : [...s.selectedTaskIds, id],
+  })),
+  clearSelectedTasks: () => set({ selectedTaskIds: [] }),
+  selectAllTasks: (ids) => set({ selectedTaskIds: ids }),
 
   notificationsEnabled: false,
   toggleNotifications: () => set((s) => ({ notificationsEnabled: !s.notificationsEnabled })),
-  notifiedTaskIds: new Set<number>(),
+  notifiedTaskIds: new Set<number>(
+    JSON.parse(sessionStorage.getItem('notifiedTaskIds') ?? '[]') as number[]
+  ),
   markTaskNotified: (id) => set((s) => {
     const next = new Set(s.notifiedTaskIds)
     next.add(id)
+    try {
+      sessionStorage.setItem('notifiedTaskIds', JSON.stringify([...next]))
+    } catch {
+      // sessionStorage not available
+    }
     return { notifiedTaskIds: next }
+  }),
+
+  isDarkMode: localStorage.getItem('darkMode') === 'true',
+  toggleDarkMode: () => set((s) => {
+    const next = !s.isDarkMode
+    localStorage.setItem('darkMode', String(next))
+    return { isDarkMode: next }
   }),
 }))

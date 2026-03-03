@@ -45,17 +45,35 @@ export function useTaskHistory(taskId: number | null) {
   ) ?? []
 }
 
-function computeNextDueDate(currentDueDate: string, intervalDays: number): string {
-  if (!currentDueDate) return ''
+function computeNextDueDate(currentDueDate: string | null, intervalDays: number): string | null {
+  if (!currentDueDate) return null
   const d = new Date(currentDueDate)
   d.setDate(d.getDate() + intervalDays)
   return d.toISOString().split('T')[0]
 }
 
+function getRecurrenceIntervalDays(cfg: import('../types').RecurrenceConfig): number {
+  switch (cfg.type) {
+    case 'WEEKLY': return 7
+    case 'BIWEEKLY': return 14
+    case 'MONTHLY': return 30
+    case 'CUSTOM': return cfg.intervalDays
+  }
+}
+
 export function useTaskMutations() {
-  async function createTask(data: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'archivedAt'>) {
+  async function createTask(data: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'archivedAt' | 'issueUrl' | 'order'> & { issueUrl?: string; order?: number }) {
     const now = new Date().toISOString()
-    return db.tasks.add({ ...data, archivedAt: null, createdAt: now, updatedAt: now })
+    const normalized: Omit<Task, 'id'> = {
+      ...data,
+      dueDate: data.dueDate ?? null,
+      issueUrl: data.issueUrl ?? '',
+      order: data.order ?? 0,
+      archivedAt: null,
+      createdAt: now,
+      updatedAt: now,
+    }
+    return db.tasks.add(normalized)
   }
 
   async function updateTask(id: number, data: Partial<Omit<Task, 'id' | 'createdAt'>>) {
@@ -78,7 +96,7 @@ export function useTaskMutations() {
           progress: 0,
           checklist: existing.checklist.map((item) => ({ ...item, done: false })),
           blockedBy: [],
-          dueDate: computeNextDueDate(existing.dueDate, cfg.intervalDays),
+          dueDate: computeNextDueDate(existing.dueDate, getRecurrenceIntervalDays(cfg)),
           archivedAt: null,
           createdAt: now,
           updatedAt: now,
@@ -222,5 +240,13 @@ export function useTaskMutations() {
     })
   }
 
-  return { createTask, updateTask, deleteTask, archiveTask, restoreTask, bulkUpdateTasks, bulkArchiveTasks, bulkDeleteTasks }
+  async function reorderTasks(orderedIds: number[]) {
+    await db.transaction('rw', db.tasks, async () => {
+      for (let i = 0; i < orderedIds.length; i++) {
+        await db.tasks.update(orderedIds[i], { order: i, updatedAt: new Date().toISOString() })
+      }
+    })
+  }
+
+  return { createTask, updateTask, deleteTask, archiveTask, restoreTask, bulkUpdateTasks, bulkArchiveTasks, bulkDeleteTasks, reorderTasks }
 }

@@ -54,7 +54,15 @@ export function useSubCategories(categoryId: number | null) {
     })
   }
 
-  return { subCategories: subCategories ?? [], createSubCategory, updateSubCategory, archiveSubCategory, restoreSubCategory, reopenSubCategory, deleteSubCategory }
+  async function reorderSubCategories(orderedIds: number[]) {
+    await db.transaction('rw', db.subCategories, async () => {
+      for (let i = 0; i < orderedIds.length; i++) {
+        await db.subCategories.update(orderedIds[i], { order: i, updatedAt: new Date().toISOString() })
+      }
+    })
+  }
+
+  return { subCategories: subCategories ?? [], createSubCategory, updateSubCategory, archiveSubCategory, restoreSubCategory, reopenSubCategory, deleteSubCategory, reorderSubCategories }
 }
 
 export function useSubCategoriesByProject(projectId: number | null) {

@@ -75,11 +75,11 @@ export default function MyTasksPage() {
     if (statusFilter) result = result.filter((t) => t.status === statusFilter)
     if (priorityFilter) result = result.filter((t) => t.priority === priorityFilter)
 
-    if (dueDateFilter === 'overdue') result = result.filter((t) => t.dueDate && t.dueDate < today)
+    if (dueDateFilter === 'overdue') result = result.filter((t) => t.dueDate != null && t.dueDate < today)
     else if (dueDateFilter === 'today') result = result.filter((t) => t.dueDate === today)
     else if (dueDateFilter === 'week') {
       const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
-      result = result.filter((t) => t.dueDate >= today && t.dueDate <= nextWeek)
+      result = result.filter((t) => t.dueDate != null && t.dueDate >= today && t.dueDate <= nextWeek)
     }
 
     if (searchQuery.trim()) {
@@ -96,7 +96,7 @@ export default function MyTasksPage() {
     return sortTasks(result, sortBy)
   }, [tasks, statusFilter, priorityFilter, sortBy, dueDateFilter, today, showCompleted, searchQuery, tagFilter])
 
-  function dueDateClass(dueDate: string) {
+  function dueDateClass(dueDate: string | null) {
     if (!dueDate) return 'text-gray-400'
     if (dueDate < today) return 'text-red-600 font-medium'
     const diff = (new Date(dueDate).getTime() - new Date(today).getTime()) / (1000 * 60 * 60 * 24)
@@ -104,29 +104,29 @@ export default function MyTasksPage() {
     return 'text-gray-400'
   }
 
-  const selectedCount = selectedTaskIds.size
+  const selectedCount = selectedTaskIds.length
   const allFilteredIds = filtered.map((t) => t.id!)
-  const allSelected = allFilteredIds.length > 0 && allFilteredIds.every((id) => selectedTaskIds.has(id))
+  const allSelected = allFilteredIds.length > 0 && allFilteredIds.every((id) => selectedTaskIds.includes(id))
 
   async function handleBulkStatus(status: TaskStatus) {
-    await bulkUpdateTasks([...selectedTaskIds], { status })
+    await bulkUpdateTasks(selectedTaskIds, { status })
     clearSelectedTasks()
   }
 
   async function handleBulkPriority(priority: TaskPriority) {
-    await bulkUpdateTasks([...selectedTaskIds], { priority })
+    await bulkUpdateTasks(selectedTaskIds, { priority })
     clearSelectedTasks()
   }
 
   async function handleBulkArchive() {
     if (!confirm(`${selectedCount}개 ACTION을 보관하시겠습니까?`)) return
-    await bulkArchiveTasks([...selectedTaskIds])
+    await bulkArchiveTasks(selectedTaskIds)
     clearSelectedTasks()
   }
 
   async function handleBulkDelete() {
     if (!confirm(`${selectedCount}개 ACTION을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`)) return
-    await bulkDeleteTasks([...selectedTaskIds])
+    await bulkDeleteTasks(selectedTaskIds)
     clearSelectedTasks()
   }
 
@@ -264,12 +264,12 @@ export default function MyTasksPage() {
                 <tr
                   key={task.id}
                   onClick={() => openTaskSlideover(task.id!)}
-                  className={`hover:bg-gray-50 cursor-pointer transition-colors ${task.status === 'DONE' ? 'opacity-60' : ''} ${selectedTaskIds.has(task.id!) ? 'bg-blue-50 hover:bg-blue-100' : ''}`}
+                  className={`hover:bg-gray-50 cursor-pointer transition-colors ${task.status === 'DONE' ? 'opacity-60' : ''} ${selectedTaskIds.includes(task.id!) ? 'bg-blue-50 hover:bg-blue-100' : ''}`}
                 >
                   <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
                     <input
                       type="checkbox"
-                      checked={selectedTaskIds.has(task.id!)}
+                      checked={selectedTaskIds.includes(task.id!)}
                       onChange={() => toggleSelectedTask(task.id!)}
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />

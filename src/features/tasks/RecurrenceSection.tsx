@@ -1,10 +1,10 @@
 import type { RecurrenceConfig, RecurrenceType } from '../../types'
 
-const recurrenceOptions: { value: RecurrenceType; label: string; intervalDays: number }[] = [
-  { value: 'WEEKLY', label: '매주', intervalDays: 7 },
-  { value: 'BIWEEKLY', label: '격주', intervalDays: 14 },
-  { value: 'MONTHLY', label: '매월', intervalDays: 30 },
-  { value: 'CUSTOM', label: '직접입력', intervalDays: 1 },
+const recurrenceOptions: { value: RecurrenceType; label: string }[] = [
+  { value: 'WEEKLY', label: '매주' },
+  { value: 'BIWEEKLY', label: '격주' },
+  { value: 'MONTHLY', label: '매월' },
+  { value: 'CUSTOM', label: '직접입력' },
 ]
 
 interface RecurrenceSectionProps {
@@ -12,26 +12,30 @@ interface RecurrenceSectionProps {
   onChange: (v: RecurrenceConfig | null) => void
 }
 
+function getIntervalDays(cfg: RecurrenceConfig | null): number {
+  if (!cfg) return 7
+  if (cfg.type === 'CUSTOM') return cfg.intervalDays
+  return 7
+}
+
 export function RecurrenceSection({ value, onChange }: RecurrenceSectionProps) {
   const enabled = value !== null
   const selectedType = value?.type ?? 'WEEKLY'
-  const intervalDays = value?.intervalDays ?? 7
+  const intervalDays = getIntervalDays(value)
 
   function handleToggle() {
     if (enabled) {
       onChange(null)
     } else {
-      onChange({ type: 'WEEKLY', intervalDays: 7 })
+      onChange({ type: 'WEEKLY' })
     }
   }
 
   function handleTypeChange(type: RecurrenceType) {
-    const preset = recurrenceOptions.find((o) => o.value === type)
-    if (!preset) return
     if (type === 'CUSTOM') {
-      onChange({ type: 'CUSTOM', intervalDays: intervalDays })
+      onChange({ type: 'CUSTOM', intervalDays: intervalDays > 0 ? intervalDays : 1 })
     } else {
-      onChange({ type, intervalDays: preset.intervalDays })
+      onChange({ type } as RecurrenceConfig)
     }
   }
 
@@ -49,14 +53,14 @@ export function RecurrenceSection({ value, onChange }: RecurrenceSectionProps) {
           onChange={handleToggle}
           className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
         />
-        <span className="text-sm font-medium text-gray-700">반복 설정</span>
+        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">반복 설정</span>
       </label>
       {enabled && (
         <div className="pl-6 space-y-2">
           <select
             value={selectedType}
             onChange={(e) => handleTypeChange(e.target.value as RecurrenceType)}
-            className="w-full text-sm border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+            className="w-full text-sm border border-gray-200 dark:border-gray-600 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-gray-100"
           >
             {recurrenceOptions.map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>
@@ -69,9 +73,9 @@ export function RecurrenceSection({ value, onChange }: RecurrenceSectionProps) {
                 min={1}
                 value={intervalDays}
                 onChange={(e) => handleCustomDays(Number(e.target.value))}
-                className="w-20 text-sm border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-20 text-sm border border-gray-200 dark:border-gray-600 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100"
               />
-              <span className="text-sm text-gray-500">일마다</span>
+              <span className="text-sm text-gray-500 dark:text-gray-400">일마다</span>
             </div>
           )}
         </div>

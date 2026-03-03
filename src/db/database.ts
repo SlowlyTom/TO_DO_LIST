@@ -48,10 +48,12 @@ export class PmcDatabase extends Dexie {
       tasks:         '++id, subCategoryId, categoryId, projectId, status, priority, archivedAt, dueDate, createdAt, updatedAt',
       taskHistory:   '++id, taskId, changedAt',
     }).upgrade(async tx => {
-      await tx.table('tasks').toCollection().modify((t: Task) => {
+      await tx.table('tasks').toCollection().modify((t: Task & { issueUrl?: string; order?: number }) => {
         if (!Array.isArray(t.tags)) t.tags = []
         if (!Array.isArray(t.blockedBy)) t.blockedBy = []
         if (t.recurrence === undefined) t.recurrence = null
+        if (typeof t.issueUrl !== 'string') t.issueUrl = ''
+        if (typeof t.order !== 'number') t.order = 0
       })
     })
     // v4: taskComments table
@@ -62,6 +64,21 @@ export class PmcDatabase extends Dexie {
       tasks:         '++id, subCategoryId, categoryId, projectId, status, priority, archivedAt, dueDate, createdAt, updatedAt',
       taskHistory:   '++id, taskId, changedAt',
       taskComments:  '++id, taskId, createdAt',
+    })
+    // v5: tasks get order + issueUrl fields; dueDate '' → null
+    this.version(5).stores({
+      projects:      '++id, name, status, archivedAt, createdAt, updatedAt',
+      categories:    '++id, projectId, status, archivedAt, order, createdAt, updatedAt',
+      subCategories: '++id, categoryId, projectId, status, archivedAt, order, createdAt, updatedAt',
+      tasks:         '++id, subCategoryId, categoryId, projectId, status, priority, archivedAt, dueDate, order, createdAt, updatedAt',
+      taskHistory:   '++id, taskId, changedAt',
+      taskComments:  '++id, taskId, createdAt',
+    }).upgrade(async tx => {
+      await tx.table('tasks').toCollection().modify((t: Task & { issueUrl?: string; order?: number }) => {
+        if (t.dueDate === '') t.dueDate = null
+        if (typeof t.order !== 'number') t.order = 0
+        if (typeof t.issueUrl !== 'string') t.issueUrl = ''
+      })
     })
   }
 }
@@ -148,7 +165,7 @@ export async function seedDatabase() {
       status: 'DONE',
       priority: 'HIGH',
       assignee: '나',
-      dueDate: '',
+      dueDate: null,
       progress: 100,
       checklist: [
         { id: '1', text: 'MODBUS_HANDLE 타입 정의', done: true },
@@ -158,6 +175,8 @@ export async function seedDatabase() {
       tags: ['설계', 'API'],
       blockedBy: [],
       recurrence: null,
+      issueUrl: '',
+      order: 0,
       archivedAt: null,
       createdAt: now,
       updatedAt: now,
@@ -181,6 +200,8 @@ export async function seedDatabase() {
       tags: ['소켓', '구현'],
       blockedBy: [],
       recurrence: null,
+      issueUrl: '',
+      order: 0,
       archivedAt: null,
       createdAt: now,
       updatedAt: now,
@@ -200,6 +221,8 @@ export async function seedDatabase() {
       tags: [],
       blockedBy: [],
       recurrence: null,
+      issueUrl: '',
+      order: 0,
       archivedAt: null,
       createdAt: now,
       updatedAt: now,

@@ -9,11 +9,12 @@ export function UpcomingTasks() {
   const today = new Date().toISOString().slice(0, 10)
 
   const upcoming = tasks
-    .filter((t) => t.status !== 'DONE' && t.dueDate)
-    .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
+    .filter((t) => t.status !== 'DONE' && t.dueDate != null)
+    .sort((a, b) => (a.dueDate ?? '').localeCompare(b.dueDate ?? ''))
     .slice(0, 10)
 
-  function dueDateClass(dueDate: string) {
+  function dueDateClass(dueDate: string | null) {
+    if (!dueDate) return 'text-gray-400'
     if (dueDate < today) return 'text-red-600 font-semibold'
     const diff = (new Date(dueDate).getTime() - new Date(today).getTime()) / (1000 * 60 * 60 * 24)
     if (diff <= 3) return 'text-orange-500 font-medium'
@@ -42,7 +43,7 @@ export function UpcomingTasks() {
             <StatusBadge status={task.status} />
             <span className="flex-1 text-sm text-gray-700 truncate">{task.title}</span>
             <PriorityBadge priority={task.priority} />
-            <span className={`text-xs ${dueDateClass(task.dueDate)}`}>{task.dueDate}</span>
+            <span className={`text-xs ${dueDateClass(task.dueDate)}`}>{task.dueDate ?? '—'}</span>
           </li>
         ))}
       </ul>
