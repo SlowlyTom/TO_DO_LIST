@@ -13,23 +13,18 @@ export function useProjects() {
     return db.projects.add({ ...data, archivedAt: null, createdAt: now, updatedAt: now })
   }
 
-  async function updateProject(id: number, data: Partial<Omit<Project, 'id' | 'createdAt'>>) {
+  async function updateProject(id: number, data: Partial<Omit<Project, 'id' | 'createdAt'>>, cascade?: boolean) {
     const now = new Date().toISOString()
     const isFinishing = data.status === 'COMPLETED' || data.status === 'CANCELLED'
 
-    if (isFinishing) {
-      const cascade = window.confirm(
-        '하위 EPIC / TASK / ACTION을 모두 완료 처리하시겠습니까?\n\n확인: 하위 항목 일괄 완료\n취소: 프로젝트 상태만 변경'
-      )
-      if (cascade) {
-        await db.transaction('rw', db.projects, db.categories, db.subCategories, db.tasks, async () => {
-          await db.projects.update(id, { ...data, updatedAt: now })
-          await db.categories.where('projectId').equals(id).modify({ status: 'COMPLETED', updatedAt: now })
-          await db.subCategories.where('projectId').equals(id).modify({ status: 'COMPLETED', updatedAt: now })
-          await db.tasks.where('projectId').equals(id).filter((t) => t.archivedAt == null).modify({ status: 'DONE', updatedAt: now })
-        })
-        return
-      }
+    if (isFinishing && cascade) {
+      await db.transaction('rw', db.projects, db.categories, db.subCategories, db.tasks, async () => {
+        await db.projects.update(id, { ...data, updatedAt: now })
+        await db.categories.where('projectId').equals(id).modify({ status: 'COMPLETED', updatedAt: now })
+        await db.subCategories.where('projectId').equals(id).modify({ status: 'COMPLETED', updatedAt: now })
+        await db.tasks.where('projectId').equals(id).filter((t) => t.archivedAt == null).modify({ status: 'DONE', updatedAt: now })
+      })
+      return
     }
 
     return db.projects.update(id, { ...data, updatedAt: now })
@@ -63,5 +58,12 @@ export function useProjects() {
 }
 
 export function useProject(id: number | null) {
-  return useLiveQuery(() => (id != null ? db.projects.get(id) : undefined), [id])
+  return useLiveQuery(
+    async () => {
+      if (id == null) return null
+      const p = await db.projects.get(id)
+      return p ?? null
+    },
+    [id]
+  )
 }

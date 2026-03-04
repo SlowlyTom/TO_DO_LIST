@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   DndContext,
   closestCenter,
@@ -136,18 +136,19 @@ function SortableSubCategoryRow({
 
   const [localTasks, setLocalTasks] = useState<Task[]>([])
   // Sync localTasks when visibleTasks changes (DB updates)
-  useMemo(() => { setLocalTasks(visibleTasks) }, [visibleTasks])
+  useEffect(() => { setLocalTasks(visibleTasks) }, [visibleTasks])
 
   const avgProgress = tasks.length
     ? Math.round(tasks.reduce((s, t) => s + t.progress, 0) / tasks.length)
     : 0
 
-  if (!showCompleted && isCompleted) return null
-
+  // Must call all hooks before any conditional return (Rules of Hooks)
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   )
+
+  if (!showCompleted && isCompleted) return null
 
   async function handleTaskDragEnd(event: DragEndEvent) {
     const { active, over } = event
@@ -265,7 +266,7 @@ function SortableCategoryRow({
   const [localSubCats, setLocalSubCats] = useState<typeof subCategories>([])
 
   // Sync localSubCats when subCategories changes
-  useMemo(() => { setLocalSubCats(subCategories) }, [subCategories])
+  useEffect(() => { setLocalSubCats(subCategories) }, [subCategories])
 
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: cat.id })
   const style = { transform: CSS.Transform.toString(transform), transition }
@@ -273,12 +274,13 @@ function SortableCategoryRow({
   const isCompleted = cat.status === 'COMPLETED'
   const isOnHold = cat.status === 'ON_HOLD'
 
-  if (!showCompleted && (isCompleted || isOnHold)) return null
-
+  // Must call all hooks before any conditional return (Rules of Hooks)
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   )
+
+  if (!showCompleted && (isCompleted || isOnHold)) return null
 
   async function handleAddSubCat() {
     if (!newSubCatName.trim()) return
@@ -422,7 +424,7 @@ export function ProjectTreeView({
   const [newCatName, setNewCatName] = useState('')
 
   // Sync local copy when DB changes
-  useMemo(() => { setLocalCategories(categories) }, [categories])
+  useEffect(() => { setLocalCategories(categories) }, [categories])
 
   const sensors = useSensors(
     useSensor(PointerSensor),

@@ -38,7 +38,11 @@ export function ProjectForm({ project, onClose }: ProjectFormProps) {
     setLoading(true)
     try {
       if (project?.id) {
-        await updateProject(project.id, form)
+        const isFinishing = form.status === 'COMPLETED' || form.status === 'CANCELLED'
+        const cascade = isFinishing
+          ? window.confirm('하위 EPIC / TASK / ACTION을 모두 완료 처리하시겠습니까?\n\n확인: 하위 항목 일괄 완료\n취소: 프로젝트 상태만 변경')
+          : false
+        await updateProject(project.id, form, cascade)
       } else {
         await createProject(form)
       }

@@ -130,7 +130,6 @@ export function useTaskMutations() {
             .filter((t) => t.id !== id && t.archivedAt == null)
             .toArray()
           const allSiblingsDone = siblingTasks.every((t) => t.status === 'DONE')
-          const anyDone = newStatus === 'DONE' || siblingTasks.some((t) => t.status === 'DONE')
 
           if (newStatus === 'DONE' && allSiblingsDone) {
             // All ACTIONs in this TASK are now DONE → auto-complete TASK
@@ -187,9 +186,7 @@ export function useTaskMutations() {
             }
 
             const cat = await db.categories.get(existing.categoryId)
-            if (cat && cat.status === 'COMPLETED' && !anyDone) {
-              await db.categories.update(cat.id!, { status: 'ACTIVE', updatedAt: now })
-            } else if (cat && cat.status === 'COMPLETED') {
+            if (cat && cat.status === 'COMPLETED') {
               await db.categories.update(cat.id!, { status: 'ACTIVE', updatedAt: now })
             }
           }
