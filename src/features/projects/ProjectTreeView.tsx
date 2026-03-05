@@ -54,28 +54,67 @@ function SortableTaskItem({
   task,
   onOpen,
   onArchive,
+  onRename,
+  onDelete,
 }: {
   task: Task
   onOpen: (id: number) => void
   onArchive: (id: number) => void
+  onRename: (id: number, newTitle: string) => void
+  onDelete: (id: number) => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: task.id! })
   const style = { transform: CSS.Transform.toString(transform), transition }
+  const [isEditing, setIsEditing] = useState(false)
+  const [editValue, setEditValue] = useState(task.title)
+
+  function handleRenameStart(e: React.MouseEvent) {
+    e.stopPropagation()
+    setEditValue(task.title)
+    setIsEditing(true)
+  }
+
+  function handleRenameCommit() {
+    const trimmed = editValue.trim()
+    if (trimmed && trimmed !== task.title) onRename(task.id!, trimmed)
+    setIsEditing(false)
+  }
+
+  function handleRenameKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Enter') handleRenameCommit()
+    else if (e.key === 'Escape') setIsEditing(false)
+  }
 
   return (
     <li
       ref={setNodeRef}
       style={style}
-      onClick={() => onOpen(task.id!)}
+      onClick={() => !isEditing && onOpen(task.id!)}
       className={`flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer group/task ${task.status === 'DONE' ? 'opacity-60' : ''}`}
     >
       <span {...attributes} {...listeners} onClick={(e) => e.stopPropagation()}>
         <GripHandle />
       </span>
       <StatusBadge status={task.status} />
-      <span className={`flex-1 text-sm text-gray-700 dark:text-gray-200 truncate ${task.status === 'DONE' ? 'line-through text-gray-400' : ''}`}>
-        {task.title}
-      </span>
+      {isEditing ? (
+        <input
+          autoFocus
+          value={editValue}
+          onChange={(e) => setEditValue(e.target.value)}
+          onBlur={handleRenameCommit}
+          onKeyDown={handleRenameKeyDown}
+          onClick={(e) => e.stopPropagation()}
+          className="flex-1 text-sm px-1 py-0.5 border border-blue-400 rounded outline-none bg-white dark:bg-gray-700 dark:text-gray-100"
+        />
+      ) : (
+        <span
+          className={`flex-1 text-sm text-gray-700 dark:text-gray-200 truncate ${task.status === 'DONE' ? 'line-through text-gray-400' : ''}`}
+          onDoubleClick={handleRenameStart}
+          title="더블클릭으로 이름 변경"
+        >
+          {task.title}
+        </span>
+      )}
       <PriorityBadge priority={task.priority} />
       {task.dueDate && (
         <span className="text-xs text-gray-400">{task.dueDate}</span>
@@ -83,15 +122,24 @@ function SortableTaskItem({
       <div className="w-16">
         <ProgressBar value={task.progress} size="sm" />
       </div>
-      {task.status === 'DONE' && (
+      <div className="opacity-0 group-hover/task:opacity-100 flex items-center gap-0.5 flex-shrink-0">
+        {task.status === 'DONE' && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onArchive(task.id!) }}
+            className="text-xs text-gray-400 hover:text-gray-600 px-1 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+            title="보관"
+          >
+            보관
+          </button>
+        )}
         <button
-          onClick={(e) => { e.stopPropagation(); onArchive(task.id!) }}
-          className="opacity-0 group-hover/task:opacity-100 text-xs text-gray-400 hover:text-gray-600 px-1 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors flex-shrink-0"
-          title="보관"
+          onClick={(e) => { e.stopPropagation(); if (confirm('ACTION을 삭제하시겠습니까?')) onDelete(task.id!) }}
+          className="text-xs text-red-400 hover:text-red-600 px-1 py-0.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+          title="삭제"
         >
-          보관
+          삭제
         </button>
-      )}
+      </div>
     </li>
   )
 }
@@ -112,10 +160,12 @@ function SortableSubCategoryRow({
 }) {
   const tasks = useTasks(subCat.id)
   const { openTaskSlideover, showCompleted } = useUiStore()
-  const { archiveSubCategory, reopenSubCategory, reorderSubCategories } = useSubCategories(categoryId)
-  const { archiveTask, reorderTasks } = useTaskMutations()
+  const { archiveSubCategory, reopenSubCategory, reorderSubCategories, updateSubCategory, deleteSubCategory } = useSubCategories(categoryId)
+  const { archiveTask, reorderTasks, updateTask, deleteTask } = useTaskMutations()
   const [showTaskForm, setShowTaskForm] = useState(false)
   const [open, setOpen] = useState(true)
+  const [isEditingName, setIsEditingName] = useState(false)
+  const [editNameValue, setEditNameValue] = useState(subCat.name)
 
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: subCat.id })
   const style = { transform: CSS.Transform.toString(transform), transition }
@@ -163,6 +213,23 @@ function SortableSubCategoryRow({
   // Suppress unused warning — reorderSubCategories is used by parent but referenced here
   void reorderSubCategories
 
+  function handleSubCatRenameStart(e: React.MouseEvent) {
+    e.stopPropagation()
+    setEditNameValue(subCat.name)
+    setIsEditingName(true)
+  }
+
+  function handleSubCatRenameCommit() {
+    const trimmed = editNameValue.trim()
+    if (trimmed && trimmed !== subCat.name) updateSubCategory(subCat.id, { name: trimmed })
+    setIsEditingName(false)
+  }
+
+  function handleSubCatRenameKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Enter') handleSubCatRenameCommit()
+    else if (e.key === 'Escape') setIsEditingName(false)
+  }
+
   return (
     <div
       ref={setNodeRef}
@@ -183,37 +250,60 @@ function SortableSubCategoryRow({
           </svg>
         </button>
         <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">TASK</span>
-        <span className={`text-sm font-medium text-gray-700 dark:text-gray-200 ${isCompleted ? 'line-through text-gray-400' : ''}`}>{subCat.name}</span>
+        {isEditingName ? (
+          <input
+            autoFocus
+            value={editNameValue}
+            onChange={(e) => setEditNameValue(e.target.value)}
+            onBlur={handleSubCatRenameCommit}
+            onKeyDown={handleSubCatRenameKeyDown}
+            className="text-sm font-medium px-1 py-0.5 border border-blue-400 rounded outline-none bg-white dark:bg-gray-700 dark:text-gray-100 w-48"
+          />
+        ) : (
+          <span
+            className={`text-sm font-medium text-gray-700 dark:text-gray-200 ${isCompleted ? 'line-through text-gray-400' : ''}`}
+            onDoubleClick={handleSubCatRenameStart}
+            title="더블클릭으로 이름 변경"
+          >
+            {subCat.name}
+          </span>
+        )}
         <span className="text-xs text-gray-400">({tasks.length})</span>
         <div className="flex-1 max-w-[120px]">
           <ProgressBar value={avgProgress} size="sm" />
         </div>
         <span className="text-xs text-gray-400">{avgProgress}%</span>
-        {isCompleted && (
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 ml-auto">
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 ml-auto">
+          {isCompleted ? (
+            <>
+              <button
+                onClick={() => archiveSubCategory(subCat.id)}
+                className="text-xs text-gray-400 hover:text-gray-600 px-1.5 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              >
+                보관
+              </button>
+              <button
+                onClick={() => reopenSubCategory(subCat.id)}
+                className="text-xs text-blue-500 hover:text-blue-700 px-1.5 py-0.5 rounded hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
+              >
+                다시 열기
+              </button>
+            </>
+          ) : (
             <button
-              onClick={() => archiveSubCategory(subCat.id)}
-              className="text-xs text-gray-400 hover:text-gray-600 px-1.5 py-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              title="보관"
+              onClick={() => setShowTaskForm(true)}
+              className="text-xs text-blue-600 hover:underline"
             >
-              보관
+              + ACTION
             </button>
-            <button
-              onClick={() => reopenSubCategory(subCat.id)}
-              className="text-xs text-blue-500 hover:text-blue-700 px-1.5 py-0.5 rounded hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
-            >
-              다시 열기
-            </button>
-          </div>
-        )}
-        {!isCompleted && (
+          )}
           <button
-            onClick={() => setShowTaskForm(true)}
-            className="opacity-0 group-hover:opacity-100 text-xs text-blue-600 hover:underline ml-auto"
+            onClick={() => { if (confirm('TASK와 하위 항목을 모두 삭제하시겠습니까?')) deleteSubCategory(subCat.id) }}
+            className="text-xs text-red-400 hover:text-red-600 px-1.5 py-0.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
           >
-            + ACTION
+            삭제
           </button>
-        )}
+        </div>
       </div>
 
       {open && (
@@ -226,6 +316,8 @@ function SortableSubCategoryRow({
                   task={task}
                   onOpen={openTaskSlideover}
                   onArchive={archiveTask}
+                  onRename={(id, newTitle) => updateTask(id, { title: newTitle })}
+                  onDelete={deleteTask}
                 />
               ))}
             </ul>
@@ -258,12 +350,14 @@ function SortableCategoryRow({
   sortBy: string
 }) {
   const { subCategories, createSubCategory, reorderSubCategories } = useSubCategories(cat.id)
-  const { deleteCategory, archiveCategory, reopenCategory } = useCategories(projectId)
+  const { deleteCategory, archiveCategory, reopenCategory, updateCategory } = useCategories(projectId)
   const { showCompleted } = useUiStore()
   const [open, setOpen] = useState(true)
   const [showSubCatForm, setShowSubCatForm] = useState(false)
   const [newSubCatName, setNewSubCatName] = useState('')
   const [localSubCats, setLocalSubCats] = useState<typeof subCategories>([])
+  const [isEditingName, setIsEditingName] = useState(false)
+  const [editNameValue, setEditNameValue] = useState(cat.name)
 
   // Sync localSubCats when subCategories changes
   useEffect(() => { setLocalSubCats(subCategories) }, [subCategories])
@@ -292,6 +386,23 @@ function SortableCategoryRow({
     })
     setNewSubCatName('')
     setShowSubCatForm(false)
+  }
+
+  function handleCatRenameStart(e: React.MouseEvent) {
+    e.stopPropagation()
+    setEditNameValue(cat.name)
+    setIsEditingName(true)
+  }
+
+  function handleCatRenameCommit() {
+    const trimmed = editNameValue.trim()
+    if (trimmed && trimmed !== cat.name) updateCategory(cat.id, { name: trimmed })
+    setIsEditingName(false)
+  }
+
+  function handleCatRenameKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Enter') handleCatRenameCommit()
+    else if (e.key === 'Escape') setIsEditingName(false)
   }
 
   async function handleSubCatDragEnd(event: DragEndEvent) {
@@ -324,7 +435,24 @@ function SortableCategoryRow({
           </svg>
         </button>
         <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400">EPIC</span>
-        <span className={`font-semibold text-gray-800 dark:text-gray-100 text-sm ${isCompleted ? 'line-through text-gray-400' : ''}`}>{cat.name}</span>
+        {isEditingName ? (
+          <input
+            autoFocus
+            value={editNameValue}
+            onChange={(e) => setEditNameValue(e.target.value)}
+            onBlur={handleCatRenameCommit}
+            onKeyDown={handleCatRenameKeyDown}
+            className="font-semibold text-sm px-1 py-0.5 border border-blue-400 rounded outline-none bg-white dark:bg-gray-700 dark:text-gray-100 w-52"
+          />
+        ) : (
+          <span
+            className={`font-semibold text-gray-800 dark:text-gray-100 text-sm ${isCompleted ? 'line-through text-gray-400' : ''}`}
+            onDoubleClick={handleCatRenameStart}
+            title="더블클릭으로 이름 변경"
+          >
+            {cat.name}
+          </span>
+        )}
         <span className="text-xs text-gray-400">({subCategories.length} TASK)</span>
         {isOnHold && (
           <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-yellow-50 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400">보류</span>
