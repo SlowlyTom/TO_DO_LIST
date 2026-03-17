@@ -87,7 +87,29 @@ export function useArchiveMutations() {
   async function restoreItem(item: ArchiveItem) {
     const now = new Date().toISOString()
     if (item.type === 'PROJECT') {
-      await db.projects.update(item.id, { archivedAt: null, updatedAt: now })
+      await db.transaction('rw', db.projects, db.categories, db.subCategories, db.tasks, async () => {
+        await db.projects.update(item.id, { archivedAt: null, updatedAt: now })
+        // 같은 시간에 아카이브된 하위 항목도 함께 복원
+        const archivedTime = new Date(item.archivedAt).getTime()
+        const cats = await db.categories.where('projectId').equals(item.id).toArray()
+        for (const c of cats) {
+          if (c.archivedAt && Math.abs(new Date(c.archivedAt).getTime() - archivedTime) < 2000) {
+            await db.categories.update(c.id!, { archivedAt: null, status: 'ACTIVE', updatedAt: now })
+          }
+        }
+        const subs = await db.subCategories.where('projectId').equals(item.id).toArray()
+        for (const s of subs) {
+          if (s.archivedAt && Math.abs(new Date(s.archivedAt).getTime() - archivedTime) < 2000) {
+            await db.subCategories.update(s.id!, { archivedAt: null, status: 'ACTIVE', updatedAt: now })
+          }
+        }
+        const tasks = await db.tasks.where('projectId').equals(item.id).toArray()
+        for (const t of tasks) {
+          if (t.archivedAt && Math.abs(new Date(t.archivedAt).getTime() - archivedTime) < 2000) {
+            await db.tasks.update(t.id!, { archivedAt: null, updatedAt: now })
+          }
+        }
+      })
     } else if (item.type === 'EPIC') {
       await db.transaction('rw', db.categories, db.subCategories, db.tasks, async () => {
         await db.categories.update(item.id, { archivedAt: null, status: 'ACTIVE', updatedAt: now })

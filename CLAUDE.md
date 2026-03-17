@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm run dev       # 개발 서버 시작 → http://localhost:5173
+npm run dev       # 개발 서버 시작 → http://localhost:8080
 npm run build     # 타입 체크 후 프로덕션 빌드 (dist/)
 npm run preview   # 빌드 결과물 로컬 미리보기
 npx tsc --noEmit  # 타입 체크만 (빌드 없이)

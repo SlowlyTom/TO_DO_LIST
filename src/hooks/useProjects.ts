@@ -31,7 +31,13 @@ export function useProjects() {
   }
 
   async function archiveProject(id: number) {
-    return db.projects.update(id, { archivedAt: new Date().toISOString(), updatedAt: new Date().toISOString() })
+    const now = new Date().toISOString()
+    await db.transaction('rw', db.projects, db.categories, db.subCategories, db.tasks, async () => {
+      await db.projects.update(id, { archivedAt: now, updatedAt: now })
+      await db.categories.where('projectId').equals(id).modify({ archivedAt: now, updatedAt: now })
+      await db.subCategories.where('projectId').equals(id).modify({ archivedAt: now, updatedAt: now })
+      await db.tasks.where('projectId').equals(id).modify({ archivedAt: now, updatedAt: now })
+    })
   }
 
   async function deleteProject(id: number) {
