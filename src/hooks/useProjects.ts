@@ -40,6 +40,16 @@ export function useProjects() {
     })
   }
 
+  async function restoreProject(id: number) {
+    const now = new Date().toISOString()
+    await db.transaction('rw', db.projects, db.categories, db.subCategories, db.tasks, async () => {
+      await db.projects.update(id, { archivedAt: null, updatedAt: now })
+      await db.categories.where('projectId').equals(id).modify({ archivedAt: null, updatedAt: now })
+      await db.subCategories.where('projectId').equals(id).modify({ archivedAt: null, updatedAt: now })
+      await db.tasks.where('projectId').equals(id).modify({ archivedAt: null, updatedAt: now })
+    })
+  }
+
   async function deleteProject(id: number) {
     // Cascade delete: tasks → subCategories → categories → project
     const categories = await db.categories.where('projectId').equals(id).toArray()
@@ -60,7 +70,7 @@ export function useProjects() {
     })
   }
 
-  return { projects: projects ?? [], createProject, updateProject, archiveProject, deleteProject }
+  return { projects: projects ?? [], createProject, updateProject, archiveProject, restoreProject, deleteProject }
 }
 
 export function useProject(id: number | null) {

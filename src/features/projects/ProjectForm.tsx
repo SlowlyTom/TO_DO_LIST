@@ -31,21 +31,36 @@ export function ProjectForm({ project, onClose }: ProjectFormProps) {
     color: project?.color ?? '#3b82f6',
   })
   const [loading, setLoading] = useState(false)
+  const [showCascadePrompt, setShowCascadePrompt] = useState(false)
+
+  const isFinishing = project && (form.status === 'COMPLETED' || form.status === 'CANCELLED')
+    && (project.status !== 'COMPLETED' && project.status !== 'CANCELLED')
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!form.name.trim()) return
+    if (isFinishing && !showCascadePrompt) {
+      setShowCascadePrompt(true)
+      return
+    }
     setLoading(true)
     try {
       if (project?.id) {
-        const isFinishing = form.status === 'COMPLETED' || form.status === 'CANCELLED'
-        const cascade = isFinishing
-          ? window.confirm('하위 EPIC / TASK / ACTION을 모두 완료 처리하시겠습니까?\n\n확인: 하위 항목 일괄 완료\n취소: 프로젝트 상태만 변경')
-          : false
-        await updateProject(project.id, form, cascade)
+        await updateProject(project.id, form, false)
       } else {
         await createProject(form)
       }
+      onClose()
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleCascadeSave() {
+    if (!project?.id) return
+    setLoading(true)
+    try {
+      await updateProject(project.id, form, true)
       onClose()
     } finally {
       setLoading(false)
@@ -71,8 +86,24 @@ export function ProjectForm({ project, onClose }: ProjectFormProps) {
         label="상태"
         value={form.status}
         options={statusOptions}
-        onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as ProjectStatus }))}
+        onChange={(e) => { setForm((f) => ({ ...f, status: e.target.value as ProjectStatus })); setShowCascadePrompt(false) }}
       />
+
+      {showCascadePrompt && (
+        <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 space-y-2">
+          <p className="text-sm text-amber-800 font-medium">하위 항목 처리 방법을 선택하세요</p>
+          <p className="text-xs text-amber-700">EPIC / TASK / ACTION을 모두 완료 처리하시겠습니까?</p>
+          <div className="flex gap-2">
+            <Button type="button" size="sm" className="flex-1" loading={loading} onClick={handleCascadeSave}>
+              하위 항목 일괄 완료
+            </Button>
+            <Button type="submit" size="sm" variant="secondary" className="flex-1" loading={loading}>
+              프로젝트 상태만 변경
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-1">
         <label className="block text-sm font-medium text-gray-700">색상</label>
         <div className="flex gap-2 flex-wrap">
@@ -87,12 +118,14 @@ export function ProjectForm({ project, onClose }: ProjectFormProps) {
           ))}
         </div>
       </div>
-      <div className="flex gap-2 pt-1">
-        <Button variant="secondary" className="flex-1" type="button" onClick={onClose}>취소</Button>
-        <Button className="flex-1" type="submit" loading={loading}>
-          {project ? '수정' : '생성'}
-        </Button>
-      </div>
+      {!showCascadePrompt && (
+        <div className="flex gap-2 pt-1">
+          <Button variant="secondary" className="flex-1" type="button" onClick={onClose}>취소</Button>
+          <Button className="flex-1" type="submit" loading={loading}>
+            {project ? '수정' : '생성'}
+          </Button>
+        </div>
+      )}
     </form>
   )
 }

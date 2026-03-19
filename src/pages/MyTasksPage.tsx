@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useAllTasks, useTaskMutations } from '../hooks/useTasks'
+import { useAppSettings } from '../hooks/useAppSettings'
 import { useUiStore } from '../stores/uiStore'
 import { TaskSlideover } from '../features/tasks/TaskSlideover'
 import { StatusBadge, PriorityBadge } from '../components/ui/Badge'
@@ -48,7 +49,9 @@ const bulkPriorityOptions: { value: TaskPriority; label: string }[] = [
 export default function MyTasksPage() {
   const tasks = useAllTasks()
   const { openTaskSlideover, showCompleted, selectedTaskIds, toggleSelectedTask, clearSelectedTasks, selectAllTasks } = useUiStore()
-  const { bulkUpdateTasks, bulkArchiveTasks, bulkDeleteTasks } = useTaskMutations()
+  const { bulkUpdateTasks, bulkArchiveTasks, bulkDeleteTasks, restoreTask } = useTaskMutations()
+  const { addToast } = useUiStore()
+  const { currentUserName } = useAppSettings()
 
   const [statusFilter, setStatusFilter] = useState<TaskStatus | ''>('')
   const [priorityFilter, setPriorityFilter] = useState<TaskPriority | ''>('')
@@ -56,6 +59,7 @@ export default function MyTasksPage() {
   const [dueDateFilter, setDueDateFilter] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [tagFilter, setTagFilter] = useState('')
+  const [myTasksOnly, setMyTasksOnly] = useState(false)
 
   const today = new Date().toISOString().slice(0, 10)
 
@@ -93,8 +97,12 @@ export default function MyTasksPage() {
       result = result.filter((t) => (t.tags ?? []).includes(tagFilter))
     }
 
+    if (myTasksOnly && currentUserName) {
+      result = result.filter((t) => t.assignee === currentUserName)
+    }
+
     return sortTasks(result, sortBy)
-  }, [tasks, statusFilter, priorityFilter, sortBy, dueDateFilter, today, showCompleted, searchQuery, tagFilter])
+  }, [tasks, statusFilter, priorityFilter, sortBy, dueDateFilter, today, showCompleted, searchQuery, tagFilter, myTasksOnly, currentUserName])
 
   function dueDateClass(dueDate: string | null) {
     if (!dueDate) return 'text-gray-400'
@@ -119,15 +127,20 @@ export default function MyTasksPage() {
   }
 
   async function handleBulkArchive() {
-    if (!confirm(`${selectedCount}개 ACTION을 보관하시겠습니까?`)) return
-    await bulkArchiveTasks(selectedTaskIds)
+    const ids = [...selectedTaskIds]
+    await bulkArchiveTasks(ids)
     clearSelectedTasks()
+    addToast(`${ids.length}개 ACTION을 보관했습니다.`, {
+      label: '되돌리기',
+      onClick: async () => { await Promise.all(ids.map((id) => restoreTask(id))) },
+    })
   }
 
   async function handleBulkDelete() {
-    if (!confirm(`${selectedCount}개 ACTION을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`)) return
-    await bulkDeleteTasks(selectedTaskIds)
+    const ids = [...selectedTaskIds]
+    await bulkDeleteTasks(ids)
     clearSelectedTasks()
+    addToast(`${ids.length}개 ACTION을 삭제했습니다.`)
   }
 
   return (
@@ -138,7 +151,7 @@ export default function MyTasksPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4 mb-5">
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 mb-5">
         <div className="flex flex-wrap gap-3 mb-3">
           <input
             type="text"
@@ -182,6 +195,18 @@ export default function MyTasksPage() {
               ))}
             </select>
           )}
+          {currentUserName && (
+            <button
+              onClick={() => setMyTasksOnly(!myTasksOnly)}
+              className={`text-sm px-3 py-1.5 rounded-lg border transition-colors ${
+                myTasksOnly
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              내 ACTION만
+            </button>
+          )}
           <div className="ml-auto">
             <Select
               value={sortBy}
@@ -191,7 +216,10 @@ export default function MyTasksPage() {
             />
           </div>
         </div>
-        <p className="text-xs text-gray-400">{filtered.length}개 ACTION</p>
+        <p className="text-xs text-gray-400">
+          {filtered.length}개 ACTION
+          {myTasksOnly && currentUserName && <span className="ml-1 text-blue-500">· {currentUserName}</span>}
+        </p>
       </div>
 
       {/* Bulk action toolbar */}
@@ -240,10 +268,10 @@ export default function MyTasksPage() {
           해당하는 ACTION이 없습니다.
         </div>
       ) : (
-        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-          <table className="w-full">
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden overflow-x-auto">
+          <table className="w-full min-w-[640px]">
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50">
+              <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40">
                 <th className="px-3 py-3 w-8">
                   <input
                     type="checkbox"
@@ -252,19 +280,19 @@ export default function MyTasksPage() {
                     className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">상태</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">제목</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">우선순위</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">마감일</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide w-32">진척율</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">상태</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">제목</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">우선순위</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">마감일</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide w-32">진척율</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
               {filtered.map((task) => (
                 <tr
                   key={task.id}
                   onClick={() => openTaskSlideover(task.id!)}
-                  className={`hover:bg-gray-50 cursor-pointer transition-colors ${task.status === 'DONE' ? 'opacity-60' : ''} ${selectedTaskIds.includes(task.id!) ? 'bg-blue-50 hover:bg-blue-100' : ''}`}
+                  className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors ${task.status === 'DONE' ? 'opacity-60' : ''} ${selectedTaskIds.includes(task.id!) ? 'bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/40' : ''}`}
                 >
                   <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
                     <input
@@ -275,7 +303,7 @@ export default function MyTasksPage() {
                     />
                   </td>
                   <td className="px-4 py-3"><StatusBadge status={task.status} /></td>
-                  <td className={`px-4 py-3 text-sm text-gray-800 max-w-xs ${task.status === 'DONE' ? 'line-through text-gray-400' : ''}`}>
+                  <td className={`px-4 py-3 text-sm text-gray-800 dark:text-gray-200 max-w-xs ${task.status === 'DONE' ? 'line-through text-gray-400' : ''}`}>
                     <div className="truncate">{task.title}</div>
                     {task.tags && task.tags.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-0.5">

@@ -88,6 +88,12 @@ export interface TaskHistory {
   changedAt: string
 }
 
+export interface AppSettings {
+  id?: number
+  currentUserName: string
+  updatedAt: string
+}
+
 // Toast notification
 export interface Toast {
   id: string

@@ -6,6 +6,7 @@ import ProjectsPage from './pages/ProjectsPage'
 import ProjectDetailPage from './pages/ProjectDetailPage'
 import MyTasksPage from './pages/MyTasksPage'
 import ArchivePage from './pages/ArchivePage'
+import { GlobalSearch } from './features/search/GlobalSearch'
 import { useEffect } from 'react'
 import { seedDatabase } from './db/database'
 import { useUiStore } from './stores/uiStore'
@@ -55,6 +56,7 @@ export default function App() {
       <BrowserRouter>
         <DatabaseInitializer />
         <DarkModeSync />
+        <GlobalSearch />
         <Routes>
           <Route element={<MainLayout />}>
             <Route path="/" element={<DashboardPage />} />

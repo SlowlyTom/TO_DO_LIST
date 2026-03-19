@@ -1,12 +1,16 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/database'
-import { useUiStore } from '../stores/uiStore'
 import type { Task, TaskHistory } from '../types'
+
+export type AutoCompleteResult = {
+  autoCompletedSubCat?: { id: number; name: string; categoryId: number }
+  autoCompletedCat?: { id: number; name: string }
+}
 
 export function useTasks(subCategoryId: number | null) {
   const tasks = useLiveQuery(
     () => subCategoryId != null
-      ? db.tasks.where('subCategoryId').equals(subCategoryId).filter((t) => t.archivedAt == null).toArray()
+      ? db.tasks.where('subCategoryId').equals(subCategoryId).filter((t) => t.archivedAt == null).sortBy('order')
       : Promise.resolve([] as Task[]),
     [subCategoryId]
   )
@@ -64,11 +68,16 @@ function getRecurrenceIntervalDays(cfg: import('../types').RecurrenceConfig): nu
 export function useTaskMutations() {
   async function createTask(data: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'archivedAt' | 'issueUrl' | 'order'> & { issueUrl?: string; order?: number }) {
     const now = new Date().toISOString()
+    let order = data.order
+    if (order === undefined) {
+      const count = await db.tasks.where('subCategoryId').equals(data.subCategoryId).filter((t) => t.archivedAt == null).count()
+      order = count
+    }
     const normalized: Omit<Task, 'id'> = {
       ...data,
       dueDate: data.dueDate ?? null,
       issueUrl: data.issueUrl ?? '',
-      order: data.order ?? 0,
+      order,
       archivedAt: null,
       createdAt: now,
       updatedAt: now,
@@ -76,17 +85,18 @@ export function useTaskMutations() {
     return db.tasks.add(normalized)
   }
 
-  async function updateTask(id: number, data: Partial<Omit<Task, 'id' | 'createdAt'>>) {
+  async function updateTask(id: number, data: Partial<Omit<Task, 'id' | 'createdAt'>>): Promise<AutoCompleteResult> {
     const existing = await db.tasks.get(id)
-    if (!existing) return
+    if (!existing) return {}
 
     const now = new Date().toISOString()
     const fields = Object.keys(data) as (keyof typeof data)[]
+    let result: AutoCompleteResult = {}
 
     await db.transaction('rw', db.tasks, db.taskHistory, db.subCategories, db.categories, async () => {
       await db.tasks.update(id, { ...data, updatedAt: now })
 
-      // 반복 태스크: DONE으로 변경되면 다음 회차 자동 생성 (상향 캐스케이드 체크 전에 실행)
+      // 반복 태스크: DONE으로 변경되면 다음 회차 자동 생성
       if (data.status === 'DONE' && existing.recurrence) {
         const cfg = existing.recurrence
         await db.tasks.add({
@@ -122,7 +132,6 @@ export function useTaskMutations() {
       if ('status' in data) {
         const newStatus = data.status
 
-        // Check parent subCategory auto-completion
         const subCat = await db.subCategories.get(existing.subCategoryId)
         if (subCat) {
           const siblingTasks = await db.tasks
@@ -131,60 +140,27 @@ export function useTaskMutations() {
             .toArray()
           const allSiblingsDone = siblingTasks.every((t) => t.status === 'DONE')
 
-          if (newStatus === 'DONE' && allSiblingsDone) {
-            // All ACTIONs in this TASK are now DONE → auto-complete TASK
-            if (subCat.status !== 'COMPLETED') {
-              await db.subCategories.update(subCat.id!, { status: 'COMPLETED', updatedAt: now })
+          if (newStatus === 'DONE' && allSiblingsDone && subCat.status !== 'COMPLETED') {
+            await db.subCategories.update(subCat.id!, { status: 'COMPLETED', updatedAt: now })
+            result.autoCompletedSubCat = { id: subCat.id!, name: subCat.name, categoryId: subCat.categoryId }
 
-              // Toast notification with undo
-              const subCatId = subCat.id!
-              useUiStore.getState().addToast(
-                `TASK "${subCat.name}" 자동 완료됨`,
-                {
-                  label: '다시 열기',
-                  onClick: () => {
-                    db.subCategories.update(subCatId, { status: 'ACTIVE', updatedAt: new Date().toISOString() })
-                    const cat = db.categories.get(subCat.categoryId)
-                    cat.then((c) => {
-                      if (c && c.status === 'COMPLETED') {
-                        db.categories.update(c.id!, { status: 'ACTIVE', updatedAt: new Date().toISOString() })
-                      }
-                    })
-                  },
-                }
-              )
+            const cat = await db.categories.get(subCat.categoryId)
+            if (cat) {
+              const siblingSubCats = await db.subCategories
+                .where('categoryId').equals(subCat.categoryId)
+                .filter((s) => s.id !== subCat.id! && s.archivedAt == null)
+                .toArray()
+              const allSubCatsDone = siblingSubCats.every((s) => s.status === 'COMPLETED')
 
-              // Check parent category auto-completion
-              const cat = await db.categories.get(subCat.categoryId)
-              if (cat) {
-                const siblingSubCats = await db.subCategories
-                  .where('categoryId').equals(subCat.categoryId)
-                  .filter((s) => s.id !== subCat.id! && s.archivedAt == null)
-                  .toArray()
-                const allSubCatsDone = siblingSubCats.every((s) => s.status === 'COMPLETED')
-
-                if (allSubCatsDone && cat.status !== 'COMPLETED') {
-                  await db.categories.update(cat.id!, { status: 'COMPLETED', updatedAt: now })
-
-                  const catId = cat.id!
-                  useUiStore.getState().addToast(
-                    `EPIC "${cat.name}" 자동 완료됨`,
-                    {
-                      label: '다시 열기',
-                      onClick: () => {
-                        db.categories.update(catId, { status: 'ACTIVE', updatedAt: new Date().toISOString() })
-                      },
-                    }
-                  )
-                }
+              if (allSubCatsDone && cat.status !== 'COMPLETED') {
+                await db.categories.update(cat.id!, { status: 'COMPLETED', updatedAt: now })
+                result.autoCompletedCat = { id: cat.id!, name: cat.name }
               }
             }
           } else if (newStatus !== 'DONE') {
-            // ACTION reverted from DONE → reopen parent TASK and EPIC if they were COMPLETED
             if (subCat.status === 'COMPLETED') {
               await db.subCategories.update(subCat.id!, { status: 'ACTIVE', updatedAt: now })
             }
-
             const cat = await db.categories.get(existing.categoryId)
             if (cat && cat.status === 'COMPLETED') {
               await db.categories.update(cat.id!, { status: 'ACTIVE', updatedAt: now })
@@ -193,6 +169,8 @@ export function useTaskMutations() {
         }
       }
     })
+
+    return result
   }
 
   async function deleteTask(id: number) {
@@ -238,10 +216,9 @@ export function useTaskMutations() {
   }
 
   async function reorderTasks(orderedIds: number[]) {
+    const now = new Date().toISOString()
     await db.transaction('rw', db.tasks, async () => {
-      for (let i = 0; i < orderedIds.length; i++) {
-        await db.tasks.update(orderedIds[i], { order: i, updatedAt: new Date().toISOString() })
-      }
+      await Promise.all(orderedIds.map((id, i) => db.tasks.update(id, { order: i, updatedAt: now })))
     })
   }
 

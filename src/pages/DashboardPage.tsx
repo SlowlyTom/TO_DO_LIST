@@ -42,17 +42,17 @@ export default function DashboardPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4 mb-6">
-        <div className="bg-white border border-gray-200 rounded-xl px-5 py-4">
-          <p className="text-xs text-gray-400 uppercase tracking-wide">TODO</p>
-          <p className="text-2xl font-bold text-gray-800 mt-1">{todoCount}</p>
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-5 py-4">
+          <p className="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-wide">TODO</p>
+          <p className="text-2xl font-bold text-gray-800 dark:text-gray-100 mt-1">{todoCount}</p>
         </div>
-        <div className="bg-white border border-gray-200 rounded-xl px-5 py-4">
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-5 py-4">
           <p className="text-xs text-blue-400 uppercase tracking-wide">진행중</p>
-          <p className="text-2xl font-bold text-blue-700 mt-1">{inProgressCount}</p>
+          <p className="text-2xl font-bold text-blue-700 dark:text-blue-400 mt-1">{inProgressCount}</p>
         </div>
-        <div className="bg-white border border-gray-200 rounded-xl px-5 py-4">
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-5 py-4">
           <p className="text-xs text-green-400 uppercase tracking-wide">완료</p>
-          <p className="text-2xl font-bold text-green-700 mt-1">{doneCount}</p>
+          <p className="text-2xl font-bold text-green-700 dark:text-green-400 mt-1">{doneCount}</p>
         </div>
       </div>
 
@@ -60,7 +60,7 @@ export default function DashboardPage() {
       <div className="mb-6">
         <h2 className="text-sm font-semibold text-gray-700 mb-3">프로젝트 ({visibleProjects.length})</h2>
         {visibleProjects.length === 0 ? (
-          <div className="bg-white border-2 border-dashed border-gray-200 rounded-xl p-10 text-center">
+          <div className="bg-white dark:bg-gray-800 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl p-10 text-center">
             <p className="text-gray-400 text-sm mb-3">아직 프로젝트가 없습니다.</p>
             <Button variant="secondary" onClick={() => setShowCreateProject(true)}>첫 프로젝트 만들기</Button>
           </div>

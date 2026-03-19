@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { useProject, useProjects } from '../hooks/useProjects'
+import { useUiStore } from '../stores/uiStore'
 import { useTasksByProject } from '../hooks/useTasks'
 import { ProjectTreeView } from '../features/projects/ProjectTreeView'
 import { TaskSlideover } from '../features/tasks/TaskSlideover'
@@ -25,7 +26,8 @@ export default function ProjectDetailPage() {
   const projectId = id ? Number(id) : null
   const project = useProject(projectId)
   const tasks = useTasksByProject(projectId)
-  const { archiveProject } = useProjects()
+  const { archiveProject, restoreProject } = useProjects()
+  const { addToast } = useUiStore()
   const navigate = useNavigate()
   const [showEdit, setShowEdit] = useState(false)
   const [treeSearch, setTreeSearch] = useState('')
@@ -56,9 +58,12 @@ export default function ProjectDetailPage() {
 
   async function handleArchive() {
     if (!projectId) return
-    if (!confirm('프로젝트를 보관함으로 이동하시겠습니까?')) return
     await archiveProject(projectId)
     navigate('/projects')
+    addToast('프로젝트를 보관함으로 이동했습니다.', {
+      label: '되돌리기',
+      onClick: async () => { await restoreProject(projectId) },
+    })
   }
 
   return (
@@ -73,24 +78,35 @@ export default function ProjectDetailPage() {
       </nav>
 
       {/* Header */}
-      <div className="flex items-start justify-between mb-6">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="w-3 h-3 rounded-full" style={{ backgroundColor: project.color }} />
-            <h1 className="text-xl font-bold text-gray-900">{project.name}</h1>
-            <ProjectStatusBadge status={project.status} />
+      <div className="mb-6">
+        <div className="flex items-start justify-between mb-3">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="w-3 h-3 rounded-full" style={{ backgroundColor: project.color }} />
+              <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">{project.name}</h1>
+              <ProjectStatusBadge status={project.status} />
+            </div>
+            {project.description && (
+              <p className="text-sm text-gray-500 dark:text-gray-400">{project.description}</p>
+            )}
           </div>
-          {project.description && (
-            <p className="text-sm text-gray-500">{project.description}</p>
-          )}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {isCompleted && (
+              <Button variant="secondary" size="sm" onClick={handleArchive} className="text-gray-500">
+                보관
+              </Button>
+            )}
+            <Button variant="secondary" size="sm" onClick={() => setShowEdit(true)}>수정</Button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
+        {/* Filter row */}
+        <div className="flex flex-wrap items-center gap-2">
           <input
             type="text"
             value={treeSearch}
             onChange={(e) => setTreeSearch(e.target.value)}
             placeholder="ACTION 검색..."
-            className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 w-40"
+            className="text-sm border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 w-44 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400"
           />
           <Select
             value={treeSortBy}
@@ -99,12 +115,6 @@ export default function ProjectDetailPage() {
             className="w-36"
           />
           <ShowCompletedToggle />
-          {isCompleted && (
-            <Button variant="secondary" size="sm" onClick={handleArchive} className="text-gray-500">
-              보관
-            </Button>
-          )}
-          <Button variant="secondary" size="sm" onClick={() => setShowEdit(true)}>수정</Button>
         </div>
       </div>
 

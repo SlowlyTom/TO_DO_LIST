@@ -55,10 +55,9 @@ export function useSubCategories(categoryId: number | null) {
   }
 
   async function reorderSubCategories(orderedIds: number[]) {
+    const now = new Date().toISOString()
     await db.transaction('rw', db.subCategories, async () => {
-      for (let i = 0; i < orderedIds.length; i++) {
-        await db.subCategories.update(orderedIds[i], { order: i, updatedAt: new Date().toISOString() })
-      }
+      await Promise.all(orderedIds.map((id, i) => db.subCategories.update(id, { order: i, updatedAt: now })))
     })
   }
 

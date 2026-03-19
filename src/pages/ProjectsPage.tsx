@@ -74,8 +74,8 @@ function ProjectRow({
 }
 
 export default function ProjectsPage() {
-  const { projects, deleteProject, archiveProject } = useProjects()
-  const { showCompleted } = useUiStore()
+  const { projects, deleteProject, archiveProject, restoreProject } = useProjects()
+  const { showCompleted, addToast } = useUiStore()
   const [showCreate, setShowCreate] = useState(false)
   const [editProject, setEditProject] = useState<Project | null>(null)
 
@@ -118,14 +118,17 @@ export default function ProjectsPage() {
                   project={p}
                   onEdit={() => setEditProject(p)}
                   onArchive={async () => {
-                    if (confirm(`"${p.name}" 프로젝트를 보관함으로 이동하시겠습니까?`)) {
-                      await archiveProject(p.id!)
-                    }
+                    const id = p.id!
+                    const name = p.name
+                    await archiveProject(id)
+                    addToast(`"${name}" 프로젝트를 보관했습니다.`, {
+                      label: '되돌리기',
+                      onClick: async () => { await restoreProject(id) },
+                    })
                   }}
                   onDelete={async () => {
-                    if (confirm(`"${p.name}" 프로젝트와 모든 하위 데이터를 삭제하시겠습니까?`)) {
-                      await deleteProject(p.id!)
-                    }
+                    await deleteProject(p.id!)
+                    addToast(`"${p.name}" 프로젝트를 삭제했습니다.`)
                   }}
                 />
               ))}

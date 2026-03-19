@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTask, useTaskHistory, useTaskMutations } from '../../hooks/useTasks'
+import { db } from '../../db/database'
 import { useTaskComments, useTaskCommentMutations } from '../../hooks/useTaskComments'
 import { useUiStore } from '../../stores/uiStore'
 import { StatusBadge, PriorityBadge } from '../../components/ui/Badge'
@@ -22,6 +23,57 @@ const priorityOptions = [
   { value: 'HIGH', label: '높음' },
   { value: 'CRITICAL', label: '긴급' },
 ]
+
+const fieldLabelMap: Record<string, string> = {
+  title: '제목',
+  description: '설명',
+  status: '상태',
+  priority: '우선순위',
+  assignee: '담당자',
+  dueDate: '마감일',
+  progress: '진척율',
+  checklist: '체크리스트',
+  tags: '태그',
+  blockedBy: '블로커',
+  recurrence: '반복',
+  issueUrl: '이슈 URL',
+}
+
+const valueLabelMap: Record<string, string> = {
+  TODO: 'TODO',
+  IN_PROGRESS: '진행중',
+  DONE: '완료',
+  LOW: '낮음',
+  MEDIUM: '보통',
+  HIGH: '높음',
+  CRITICAL: '긴급',
+  'null': '없음',
+  '""': '없음',
+}
+
+function formatHistoryValue(raw: string): string {
+  try {
+    const parsed = JSON.parse(raw)
+    if (parsed === null || parsed === '') return '없음'
+    if (typeof parsed === 'string') return valueLabelMap[parsed] ?? parsed
+    if (typeof parsed === 'number') return String(parsed)
+    if (Array.isArray(parsed)) return parsed.length === 0 ? '없음' : `${parsed.length}개`
+    return raw
+  } catch {
+    return raw
+  }
+}
+
+function abbreviateUrl(url: string): string {
+  try {
+    const u = new URL(url)
+    const pathParts = u.pathname.split('/').filter(Boolean)
+    const short = pathParts.length > 2 ? `.../${pathParts.slice(-2).join('/')}` : u.pathname
+    return `${u.hostname}${short}`
+  } catch {
+    return url
+  }
+}
 
 function ChecklistSection({
   items,
@@ -215,6 +267,7 @@ export function TaskSlideover() {
   const task = useTask(taskId)
   const history = useTaskHistory(taskId)
   const { updateTask, deleteTask, archiveTask } = useTaskMutations()
+  const { addToast } = useUiStore()
   const [editMode, setEditMode] = useState(false)
   const [form, setForm] = useState<Partial<Task>>({})
 
@@ -232,15 +285,41 @@ export function TaskSlideover() {
 
   async function handleSave() {
     if (!taskId || !form.title) return
-    await updateTask(taskId, form)
+    const result = await updateTask(taskId, form)
     setEditMode(false)
+
+    if (result.autoCompletedSubCat) {
+      const { id: subCatId, name: subCatName, categoryId } = result.autoCompletedSubCat
+      addToast(`TASK "${subCatName}" 자동 완료됨`, {
+        label: '다시 열기',
+        onClick: async () => {
+          await db.transaction('rw', db.subCategories, db.categories, async () => {
+            await db.subCategories.update(subCatId, { status: 'ACTIVE', updatedAt: new Date().toISOString() })
+            const cat = await db.categories.get(categoryId)
+            if (cat && cat.status === 'COMPLETED') {
+              await db.categories.update(cat.id!, { status: 'ACTIVE', updatedAt: new Date().toISOString() })
+            }
+          })
+        },
+      })
+    }
+    if (result.autoCompletedCat) {
+      const { id: catId, name: catName } = result.autoCompletedCat
+      addToast(`EPIC "${catName}" 자동 완료됨`, {
+        label: '다시 열기',
+        onClick: async () => {
+          await db.categories.update(catId, { status: 'ACTIVE', updatedAt: new Date().toISOString() })
+        },
+      })
+    }
   }
 
   async function handleDelete() {
-    if (!taskId) return
-    if (!confirm('ACTION을 삭제하시겠습니까?')) return
+    if (!taskId || !task) return
+    const deletedTitle = task.title
     await deleteTask(taskId)
     closeTaskSlideover()
+    addToast(`"${deletedTitle}" ACTION을 삭제했습니다.`)
   }
 
   async function handleArchive() {
@@ -284,12 +363,6 @@ export function TaskSlideover() {
                 </svg>
               </Button>
             )}
-            <Button size="sm" variant="ghost" onClick={handleDelete} className="text-red-400 hover:text-red-600 hover:bg-red-50">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-            </Button>
             <Button size="sm" variant="ghost" onClick={closeTaskSlideover}>
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -377,6 +450,14 @@ export function TaskSlideover() {
                 <Button variant="secondary" className="flex-1" onClick={() => { setForm(task); setEditMode(false) }}>취소</Button>
                 <Button className="flex-1" onClick={handleSave}>저장</Button>
               </div>
+              <div className="border-t border-gray-100 dark:border-gray-700 pt-3 mt-1">
+                <button
+                  onClick={handleDelete}
+                  className="w-full text-xs text-red-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 py-2 rounded-lg transition-colors"
+                >
+                  ACTION 삭제
+                </button>
+              </div>
             </div>
           ) : (
             /* View mode */
@@ -405,10 +486,11 @@ export function TaskSlideover() {
                     href={task.issueUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-600 dark:text-blue-400 hover:underline break-all"
+                    className="text-blue-600 dark:text-blue-400 hover:underline truncate block"
+                    title={task.issueUrl}
                     onClick={(e) => e.stopPropagation()}
                   >
-                    {task.issueUrl}
+                    {abbreviateUrl(task.issueUrl)}
                   </a>
                 </div>
               )}
@@ -464,15 +546,15 @@ export function TaskSlideover() {
               {/* History */}
               {history.length > 0 && (
                 <div>
-                  <p className="text-sm font-medium text-gray-700 mb-2">변경 이력</p>
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">변경 이력</p>
                   <ul className="space-y-1.5 text-xs">
                     {history.slice(0, 10).map((h) => (
-                      <li key={h.id} className="flex gap-2 text-gray-500">
-                        <span className="text-gray-300">{h.changedAt.slice(0, 16).replace('T', ' ')}</span>
-                        <span className="font-medium text-gray-600">{h.field}</span>
-                        <span className="text-gray-400 truncate max-w-[120px]">{h.oldValue}</span>
-                        <span>→</span>
-                        <span className="text-gray-600 truncate max-w-[120px]">{h.newValue}</span>
+                      <li key={h.id} className="flex gap-2 text-gray-500 dark:text-gray-400">
+                        <span className="text-gray-300 dark:text-gray-600 flex-shrink-0">{h.changedAt.slice(0, 16).replace('T', ' ')}</span>
+                        <span className="font-medium text-gray-600 dark:text-gray-300 flex-shrink-0">{fieldLabelMap[h.field] ?? h.field}</span>
+                        <span className="text-gray-400 dark:text-gray-500 truncate max-w-[100px]">{formatHistoryValue(h.oldValue)}</span>
+                        <span className="flex-shrink-0">→</span>
+                        <span className="text-gray-600 dark:text-gray-300 truncate max-w-[100px]">{formatHistoryValue(h.newValue)}</span>
                       </li>
                     ))}
                   </ul>

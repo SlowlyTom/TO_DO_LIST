@@ -21,6 +21,8 @@ export default function ArchivePage() {
 
   // Bulk delete double-confirm
   const [deleteAllStep, setDeleteAllStep] = useState(0)
+  // Single item delete confirm
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
 
   // Project list for filter dropdown
   const allProjects = useLiveQuery(() => db.projects.toArray(), []) ?? []
@@ -54,7 +56,12 @@ export default function ArchivePage() {
   }
 
   async function handleDelete(item: ArchiveItem) {
-    if (!confirm(`"${item.name}"을(를) 영구 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`)) return
+    const key = `${item.type}-${item.id}`
+    if (deleteConfirmId !== key) {
+      setDeleteConfirmId(key)
+      return
+    }
+    setDeleteConfirmId(null)
     await permanentlyDelete(item)
   }
 
@@ -115,6 +122,7 @@ export default function ArchivePage() {
         items={filtered}
         onRestore={handleRestore}
         onDelete={handleDelete}
+        deleteConfirmId={deleteConfirmId}
       />
 
       {/* Restore confirmation modal for archived parent */}

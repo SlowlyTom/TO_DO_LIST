@@ -59,7 +59,7 @@ export function TaskForm({ subCategoryId, categoryId, projectId, onClose }: Task
     if (!form.title.trim()) return
     setLoading(true)
     try {
-      await createTask({ ...form, subCategoryId, categoryId, projectId, checklist: [], blockedBy: [], order: 0 })
+      await createTask({ ...form, subCategoryId, categoryId, projectId, checklist: [], blockedBy: [] })
       onClose()
     } finally {
       setLoading(false)

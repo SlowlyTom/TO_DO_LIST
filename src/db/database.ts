@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie'
-import type { Project, Category, SubCategory, Task, TaskHistory, TaskComment, CategoryStatus } from '../types'
+import type { Project, Category, SubCategory, Task, TaskHistory, TaskComment, AppSettings, CategoryStatus } from '../types'
 
 export class PmcDatabase extends Dexie {
   projects!: Table<Project>
@@ -8,6 +8,7 @@ export class PmcDatabase extends Dexie {
   tasks!: Table<Task>
   taskHistory!: Table<TaskHistory>
   taskComments!: Table<TaskComment>
+  appSettings!: Table<AppSettings>
 
   constructor() {
     super('PmcTaskBoard')
@@ -79,6 +80,10 @@ export class PmcDatabase extends Dexie {
         if (typeof t.order !== 'number') t.order = 0
         if (typeof t.issueUrl !== 'string') t.issueUrl = ''
       })
+    })
+    // v6: appSettings table
+    this.version(6).stores({
+      appSettings: '++id',
     })
   }
 }

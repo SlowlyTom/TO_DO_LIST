@@ -133,7 +133,7 @@ function SortableTaskItem({
           </button>
         )}
         <button
-          onClick={(e) => { e.stopPropagation(); if (confirm('ACTION을 삭제하시겠습니까?')) onDelete(task.id!) }}
+          onClick={(e) => { e.stopPropagation(); onDelete(task.id!) }}
           className="text-xs text-red-400 hover:text-red-600 px-1 py-0.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
           title="삭제"
         >
@@ -159,9 +159,9 @@ function SortableSubCategoryRow({
   sortBy: string
 }) {
   const tasks = useTasks(subCat.id)
-  const { openTaskSlideover, showCompleted } = useUiStore()
+  const { openTaskSlideover, showCompleted, addToast } = useUiStore()
   const { archiveSubCategory, reopenSubCategory, reorderSubCategories, updateSubCategory, deleteSubCategory } = useSubCategories(categoryId)
-  const { archiveTask, reorderTasks, updateTask, deleteTask } = useTaskMutations()
+  const { archiveTask, reorderTasks, updateTask, deleteTask, restoreTask } = useTaskMutations()
   const [showTaskForm, setShowTaskForm] = useState(false)
   const [open, setOpen] = useState(true)
   const [isEditingName, setIsEditingName] = useState(false)
@@ -194,7 +194,7 @@ function SortableSubCategoryRow({
 
   // Must call all hooks before any conditional return (Rules of Hooks)
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   )
 
@@ -298,7 +298,11 @@ function SortableSubCategoryRow({
             </button>
           )}
           <button
-            onClick={() => { if (confirm('TASK와 하위 항목을 모두 삭제하시겠습니까?')) deleteSubCategory(subCat.id) }}
+            onClick={() => {
+              const name = subCat.name
+              deleteSubCategory(subCat.id)
+              addToast(`TASK "${name}"와 하위 항목을 삭제했습니다.`)
+            }}
             className="text-xs text-red-400 hover:text-red-600 px-1.5 py-0.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
           >
             삭제
@@ -315,9 +319,18 @@ function SortableSubCategoryRow({
                   key={task.id}
                   task={task}
                   onOpen={openTaskSlideover}
-                  onArchive={archiveTask}
+                  onArchive={async (id) => {
+                    await archiveTask(id)
+                    addToast(`"${task.title}" ACTION을 보관했습니다.`, {
+                      label: '되돌리기',
+                      onClick: async () => { await restoreTask(id) },
+                    })
+                  }}
                   onRename={(id, newTitle) => updateTask(id, { title: newTitle })}
-                  onDelete={deleteTask}
+                  onDelete={async (id) => {
+                    await deleteTask(id)
+                    addToast(`"${task.title}" ACTION을 삭제했습니다.`)
+                  }}
                 />
               ))}
             </ul>
@@ -351,7 +364,7 @@ function SortableCategoryRow({
 }) {
   const { subCategories, createSubCategory, reorderSubCategories } = useSubCategories(cat.id)
   const { deleteCategory, archiveCategory, reopenCategory, updateCategory } = useCategories(projectId)
-  const { showCompleted } = useUiStore()
+  const { showCompleted, addToast } = useUiStore()
   const [open, setOpen] = useState(true)
   const [showSubCatForm, setShowSubCatForm] = useState(false)
   const [newSubCatName, setNewSubCatName] = useState('')
@@ -370,7 +383,7 @@ function SortableCategoryRow({
 
   // Must call all hooks before any conditional return (Rules of Hooks)
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   )
 
@@ -483,7 +496,9 @@ function SortableCategoryRow({
                 variant="ghost"
                 className="text-red-400 hover:text-red-600"
                 onClick={() => {
-                  if (confirm('EPIC과 하위 항목을 모두 삭제하시겠습니까?')) deleteCategory(cat.id)
+                  const name = cat.name
+                  deleteCategory(cat.id)
+                  addToast(`EPIC "${name}"과 하위 항목을 삭제했습니다.`)
                 }}
               >
                 삭제
@@ -555,7 +570,7 @@ export function ProjectTreeView({
   useEffect(() => { setLocalCategories(categories) }, [categories])
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   )
 
